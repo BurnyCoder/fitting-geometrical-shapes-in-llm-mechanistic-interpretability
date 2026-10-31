@@ -1,0 +1,9 @@
+- **Synthetic test set (39,000 clouds, 13 families):** the method picks the correct family in 87.9% [87.6, 88.2] of clouds; median Chamfer distance to the ground-truth shape 0.156 (RMS-radius units).
+- **Same 3,120 clouds for every system:** method 87.4% [86.2, 88.5], B2 features + boosting 64.5% [62.8, 66.2], B1 classical fit + geometric AIC 52.2% [50.6, 54.0], trivial baselines 7.7-7.9%.
+- **H1** (macro-F1 method - B1): 0.3741 [0.3579, 0.3903], Holm p < 1e-16: supported.
+- **H2** (median Chamfer method - B1): -0.0554 [-0.0645, -0.0462], Holm p < 1e-16: supported.
+- **H5b_refinement** (median Chamfer method - no refinement): -0.0033 [-0.0046, -0.0021], Holm p < 1e-16: supported.
+- **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to 64.6% [64.1, 65.1].
+- **Calibration:** temperature T = 0.772 lowers ECE from 0.044 to 0.022 and NLL from 0.397 to 0.373.
+- **H3, real activations:** the coarse shape class (point set / curve / surface / blob) agrees with the literature on 7/12 preregistered datasets (exact 95% CI 28-85%), label-permutation p = 0.125: not supported.
+- **H4, controls:** matched-covariance Gaussians are labelled blob 86% of the time; ordinal-process controls ringing 60% vs helix 40%: supported. Post hoc: smooth Gaussian processes alone are labelled helix in 80%, random walks in 0%.

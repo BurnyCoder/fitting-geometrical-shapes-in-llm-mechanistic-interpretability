@@ -1,7 +1,8 @@
 \documentclass[10pt]{article}
 \usepackage[margin=0.9in]{geometry}
 \usepackage[utf8]{inputenc}
-\usepackage{amsmath,amssymb,booktabs,graphicx,hyperref,xcolor,natbib,float,caption}
+\PassOptionsToPackage{hyphens}{url}  % let long URLs break at hyphens
+\usepackage{amsmath,amssymb,booktabs,graphicx,hyperref,xcolor,natbib,float,caption,rotating}
 \hypersetup{colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black}
 \graphicspath{{../docs/figures/}}
 \input{generated/numbers.tex}
@@ -15,7 +16,7 @@
 
 \begin{abstract}
 Interpretability research repeatedly reports low-dimensional shapes in neural activations: circles for weekdays and months, helices for positions and counts, a paraboloid for colors, lines for temperature and age, polytopes for features in superposition. These shapes are usually identified and fitted by hand. We (i) compile a cited catalog of empirically reported neural geometries, (ii) train a permutation-invariant network \emph{only on synthetic shapes} that maps a 3D point cloud (the top-3 principal components of activations) to one of 13 shape families and to a canonical, unique parameter vector, using a shape-to-shape Chamfer loss against the ground-truth shape plus a point-to-shape residual, and (iii) evaluate it on a preregistered synthetic test set and on real activations of GPT-2, Llama-3.1-8B, a grokked modular-addition transformer and toy models of superposition, against a classical fit-every-family baseline with geometric-AIC model selection, a feature-based classifier, trivial baselines, random controls and ablations.
-\input{generated/abstract_results.tex}
+\input{abstract_results.tex}
 \end{abstract}
 
 \section{Introduction}
@@ -31,7 +32,7 @@ We ask whether the description step can be automated: given the top-3 PCA coordi
 
 \section{Background and related work}
 \label{sec:catalog}
-\paragraph{Empirical neural geometries.} Circles for days of the week and months were found with sparse-autoencoder clusters and PCA in GPT-2, Mistral-7B and Llama-3-8B \citep{engels2025notall}; GPT-2's learned positional embeddings form a helix in their top-3 PCs \citep{yedidia2023helix}; the character count since the last line break lives on a rippled helix-like curve in Claude 3.5 Haiku \citep{gurnee2025linebreaks}; numbers form a generalized helix \citep{kantamneni2025trig}; Llama-3.1-8B layer 19 shows a paraboloid for colors, a helix for years, a circle for days and lines for temperature and age \citep{bhalla2026sae}; grokked modular-addition transformers place residues on circles (``clock'') or discs (``pizza'') \citep{nanda2023progress,zhong2023clock}; features in superposition form regular polytopes \citep{elhage2022tms}; true and false statements separate into clusters \citep{marks2024truth}; supervised MDS recovers circles, lines and clusters for temporal concepts \citep{tiblias2025smds}; in-context graphs reorganize into rings and grids \citep{park2025iclr}; emotions lie on a circle \citep{sun2026valence}. Outside LLMs, grid cells form a torus \citep{gardner2022torus}, head-direction cells a ring \citep{chaudhuri2019ring}, natural image patches a Klein bottle \citep{carlsson2008klein}. Table~\ref{tab:catalog} (generated from \texttt{catalog.yaml}) lists all entries.
+\paragraph{Empirical neural geometries.} Circles for days of the week and months were found with sparse-autoencoder clusters and PCA in GPT-2, Mistral-7B and Llama-3-8B \citep{engels2025notall}; GPT-2's learned positional embeddings form a helix in their top-3 PCs \citep{yedidia2023helix}; the character count since the last line break lives on a rippled helix-like curve in Claude 3.5 Haiku \citep{gurnee2025linebreaks}; numbers form a generalized helix \citep{kantamneni2025trig}; Llama-3.1-8B layer 19 shows a paraboloid for colors, a helix for years, a circle for days and lines for temperature and age \citep{bhalla2026sae}; grokked modular-addition transformers place residues on circles (``clock'') or discs (``pizza'') \citep{nanda2023progress,zhong2023clock}; features in superposition form regular polytopes \citep{elhage2022tms}; true and false statements separate into clusters \citep{marks2024truth}; supervised MDS recovers circles, lines and clusters for temporal concepts \citep{tiblias2025smds}; in-context graphs reorganize into rings and grids \citep{park2025iclr}; emotions lie on a circle \citep{sun2026valence}. Outside LLMs, grid cells form a torus \citep{gardner2022torus}, head-direction cells a ring \citep{chaudhuri2019ring}, natural image patches a Klein bottle \citep{carlsson2008klein}. Appendix~\ref{app:catalog} (generated from \texttt{catalog.yaml}) lists all entries.
 
 \paragraph{Primitive fitting.} Deep primitive fitting on CAD point clouds predicts per-point memberships and fits planes, spheres, cylinders and cones with differentiable least squares \citep{li2019spfn}, B-spline patches \citep{sharma2020parsenet} or regressed parameters \citep{yan2021hpnet}; the classical alternative is RANSAC \citep{schnabel2007ransac} with information-criterion model selection \citep{kanatani2004gaic}. These methods target large CAD clouds with several primitives; neural-geometry clouds have one shape, few points (7 weekdays), high noise, families absent from CAD vocabularies (helix, torus, PCA ringing), and come from a PCA projection of a much higher-dimensional space. To our knowledge, no prior work learns shape-type classification plus parameter regression for activation point clouds; the closest is hypothesis-driven supervised MDS, which needs concept labels and has no free shape parameters \citep{tiblias2025smds}.
 
@@ -77,17 +78,18 @@ where CD is the symmetric, length/area-weighted, unsquared Chamfer distance betw
 \input{conclusion_text.tex}
 
 \section*{Reproducibility}
-All code, configurations, logs and the preregistration are at \url{https://github.com/BurnyCoder/geometrical-shape-fitting-in-llm-mechanistic-interpretability}; one command (\texttt{uv run python run.py report}) regenerates every number, table and figure in this paper from the results files. Trained fitters are on the Hugging Face Hub (collection ``Fitting geometric shapes to neural geometry'').
-
-\section*{AI statement}
-This codebase and paper were written by Claude Code (Anthropic), an AI coding agent, which executed a specification provided by the human author; the human author provided the research question, constraints and standards to follow. Human cleanup and rewriting are in progress.
+All code, configurations, logs, the preregistration and the deviation log are at \url{https://github.com/BurnyCoder/geometrical-shape-fitting-in-llm-mechanistic-interpretability}. One command (\texttt{uv run python run.py report --config main.yaml}) regenerates every number, table and figure in this paper from the results files. The trained fitter is on the Hugging Face Hub (collection ``Fitting geometric shapes to neural geometry''), and an interactive explorer of all fits is at \url{https://burnycoder.github.io/geometrical-shape-fitting-in-llm-mechanistic-interpretability/}.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
 
 \appendix
 \section{Catalog of empirically reported shapes}
+\label{app:catalog}
 \input{generated/catalog_table.tex}
 \section{Additional results}
 \input{appendix_text.tex}
+
+\section*{AI statement}
+This codebase and paper were written by Claude Code (Anthropic), an AI coding agent, which executed a specification provided by the human author; the human author provided the research question, constraints and standards to follow. Human cleanup and rewriting are in progress.
 \end{document}

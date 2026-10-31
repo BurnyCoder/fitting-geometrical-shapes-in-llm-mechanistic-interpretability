@@ -1,0 +1,33 @@
+\scriptsize
+\begin{tabular}{llllllll}
+\toprule
+\textbf{Dataset} & \textbf{N x D} & \textbf{Top-3 var.} & \textbf{Expected (coarse / fine)} & \textbf{Fit (full cloud)} & \textbf{p} & \textbf{Subsample majority (freq.)} & \textbf{Flags} \\
+\midrule
+C1\_gp\_0 (prereg) & 200 x 768 & 99\% & 1d / ringing & helix & 0.72 & ringing (58\%) & - \\
+C1\_walk\_0 (prereg) & 200 x 768 & 83\% & 1d / ringing & ringing & 0.99 & ringing (100\%) & - \\
+C3\_gpt2\_wpos\_init (prereg) & 1023 x 768 & 1\% & 3d / blob & blob & 0.93 & blob (100\%) & gap$<$1.5 \\
+C3\_grokking\_WE\_init (prereg) & 113 x 128 & 9\% & 3d / blob & blob & 0.95 & blob (100\%) & gap$<$1.5 \\
+C3\_grokking\_WE\_memorised & 113 x 128 & 15\% & - / - & blob & 0.97 & blob (100\%) & gap$<$1.5 \\
+C3\_llama\_counting\_init (prereg) & 150 x 4096 & 14\% & 3d / blob & clusters & 0.96 & clusters (98\%) & gap$<$1.5, OOD \\
+C3\_llama\_months\_init (prereg) & 144 x 4096 & 19\% & 3d / blob & clusters & 0.93 & clusters (82\%) & gap$<$1.5, OOD \\
+C3\_llama\_weekdays\_init (prereg) & 49 x 4096 & 34\% & 3d / blob & polytope & 0.72 & clusters (70\%) & gap$<$1.5, OOD \\
+C3\_tms\_dense & 5 x 3 & 100\% & - / - & polytope & 0.57 & polytope (100\%) & - \\
+R1\_gpt2\_wpos (prereg) & 1023 x 768 & 91\% & 1d / helix & sphere & 0.65 & sphere (74\%) & - \\
+R2\_grokking\_WE (prereg) & 113 x 128 & 32\% & 1d / arc, ellipse & helix & 0.51 & helix (43\%) & gap$<$1.5 \\
+R3\_tms\_n20 & 20 x 3 & 100\% & 0d / polytope, clusters & sphere & 0.84 & sphere (78\%) & - \\
+R3\_tms\_n6 (prereg) & 6 x 3 & 100\% & 0d / polytope, clusters & polytope & 1.00 & polytope (100\%) & - \\
+R3\_tms\_n8 (prereg) & 8 x 3 & 100\% & 0d / polytope, clusters & polytope & 1.00 & sphere (56\%) & - \\
+R4\_llama\_counting (prereg) & 150 x 4096 & 69\% & 1d / helix & ringing & 0.74 & ringing (92\%) & - \\
+R4b\_pythia\_counting & 150 x 1024 & 75\% & 1d / helix & ringing & 0.86 & ringing (100\%) & - \\
+R5a\_llama\_weekdays (prereg) & 49 x 4096 & 66\% & 1d / arc & helix & 0.83 & helix (58\%) & gap$<$1.5 \\
+R5a\_llama\_weekdays\_means (prereg) & 7 x 4096 & 78\% & 1d / arc & sphere & 0.40 & helix (74\%) & gap$<$1.5 \\
+R5b\_llama\_months (prereg) & 144 x 4096 & 55\% & 1d / arc & helix & 0.70 & helix (87\%) & gap$<$1.5 \\
+R5b\_llama\_months\_means (prereg) & 12 x 4096 & 60\% & 1d / arc & helix & 0.40 & helix (51\%) & gap$<$1.5 \\
+R5c\_llama\_days\_time & 336 x 4096 & 58\% & 1d / arc & ringing & 0.83 & ringing (86\%) & gap$<$1.5 \\
+R6\_llama\_years (prereg) & 199 x 4096 & 25\% & 1d / helix & cone & 0.34 & paraboloid (62\%) & gap$<$1.5 \\
+R7\_llama\_colors (prereg) & 900 x 4096 & 66\% & 2d / paraboloid & cone & 0.79 & cone (83\%) & gap$<$1.5 \\
+R8a\_llama\_temperature (prereg) & 150 x 4096 & 90\% & 1d / line & ringing & 0.98 & ringing (100\%) & - \\
+R8b\_llama\_age (prereg) & 99 x 4096 & 85\% & 1d / line & clusters & 0.61 & clusters (96\%) & OOD \\
+R9\_llama\_truth\_cities (prereg) & 1496 x 4096 & 53\% & 0d / clusters & ringing & 0.82 & ringing (100\%) & OOD \\
+\bottomrule
+\end{tabular}

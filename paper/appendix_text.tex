@@ -1,0 +1,38 @@
+% Appendix: additional generated tables and figures.
+
+\subsection{Unambiguous synthetic subset}
+Synthetic clouds that a simpler family also fits equally well (judged from B1's per-family fits) are tagged ambiguous (\ambiguousFrac{} of the baseline subset). Table~\ref{tab:unambiguous} repeats Table~\ref{tab:results} without them.
+\begin{table}[H]
+\centering
+\caption{Systems on the baseline subset without ambiguous clouds.}
+\label{tab:unambiguous}
+\resizebox{\textwidth}{!}{\input{generated/unambiguous_table.tex}}
+\end{table}
+
+\subsection{Training, confusion and calibration}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig_training.png}
+\caption{Training loss (left) and validation family accuracy and teacher-forced Chamfer distance on the fixed validation stream (right). Steps 0--9999 of the loss curve were recovered from the log of the crashed first attempt (\texttt{reports/deviations.md}).}
+\label{fig:training}
+\end{figure}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\textwidth]{fig_confusion.png}\hfill
+\includegraphics[width=0.4\textwidth]{fig_reliability.png}
+\caption{Left: confusion matrix of the method on the full synthetic test set (row-normalised). Right: reliability diagram after temperature scaling.}
+\label{fig:confusion}\label{fig:reliability}
+\end{figure}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig_systems.png}
+\caption{Fine accuracy and median Chamfer distance of all systems with 95\% bootstrap CIs.}
+\label{fig:systems}
+\end{figure}
+
+\subsection{Models}
+\begin{table}[H]
+\centering
+\caption{Trained fitters.}
+\resizebox{\textwidth}{!}{\input{generated/models_table.tex}}
+\end{table}

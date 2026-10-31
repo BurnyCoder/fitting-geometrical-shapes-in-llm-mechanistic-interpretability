@@ -1,0 +1,68 @@
+% Results. Every number is a macro from generated/numbers.tex (written by `run.py report` from results/), and every
+% table is generated from the same files; no number in this file is typed by hand.
+
+\subsection{Synthetic test set}
+Table~\ref{tab:results} compares all systems. On the full test set ($n=\nMethod$ clouds), the method selects the correct family for \accMethod{} \accCIMethod{} of the clouds, with a median Chamfer distance to the noise-free ground-truth shape of \cdMethod{} \cdCIMethod{} (in units of the RMS radius of the cloud). On the baseline subset, where every system sees the same $n=\nBone$ clouds, the method reaches \accMethodsub{}, against \accBtwo{} for the feature classifier B2, \accBone{} for the classical fit-every-family pipeline B1, and \accBthreea{}--\accBthreec{} for the trivial baselines.
+
+\begin{table}[tbp]
+\centering
+\caption{Synthetic test set. Fine accuracy is the exact family; coarse accuracy is the shape dimension (point set, curve, surface, blob). Chamfer is the median symmetric Chamfer distance between the selected, refined shape and the noise-free ground-truth shape. Baselines and the ``baseline subset'' row use the same 20 clouds per family and cell. 95\% percentile-bootstrap CIs. The full table (superset-tolerant accuracy, residual, axis error) is in \texttt{reports/exp01\_synthetic.md}.}
+\label{tab:results}
+\resizebox{\textwidth}{!}{\input{generated/results_table_compact.tex}}
+\end{table}
+
+\paragraph{Preregistered hypotheses (Table~\ref{tab:hypotheses}).} H1 is supported: the paired macro-F1 difference between the method and B1 is \estHone{} \ciHone{}. H2 is supported: the paired difference in median Chamfer distance is \estHtwo{} \ciHtwo{}. Refinement (H5b) lowers the median Chamfer distance by a small but significant amount, \estHfivebrefinement{} \ciHfivebrefinement{}; because the family is selected by the classifier before refinement, refinement cannot change accuracy (A3 has the same accuracy as the method by construction). H5a (Chamfer versus parameter-space loss) requires the ablation runs, which are postponed (Sec.~\ref{sec:limitations}).
+
+\begin{table}[H]
+\centering
+\caption{Preregistered hypotheses. p-values are Holm-corrected over the synthetic comparisons; H3 uses an exact binomial CI and a 10{,}000-permutation null over predicted coarse labels.}
+\label{tab:hypotheses}
+\resizebox{\textwidth}{!}{\input{generated/hypotheses_table.tex}}
+\end{table}
+
+\paragraph{Where the gap comes from.} Selecting among the network's own refined candidates with geometric AIC (A5) lowers accuracy to \accAfivegaic{}, close to B2. Model selection, not fitting, is what separates the systems: with nested families and realistic noise a residual-versus-complexity criterion often prefers the more flexible family, while the classifier has learned the prior over families and noise that generated the data. The advantage of the method is largest for the smallest clouds (Fig.~\ref{fig:byn}). The hardest families are cone, helix and paraboloid; most of their errors are confusions with each other (Appendix, Fig.~\ref{fig:confusion}). Temperature scaling with $T=\temperature$ fitted on the validation stream lowers the expected calibration error from \eceBefore{} to \eceAfter{} and the NLL from \nllBefore{} to \nllAfter{} (Appendix, Fig.~\ref{fig:reliability}).
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_by_n.png}\hfill
+\includegraphics[width=0.48\textwidth]{fig_by_noise.png}
+\caption{Fine accuracy by number of points and by relative noise on the baseline subset (the same clouds for every line). A3 is omitted because its accuracy equals the method's by construction.}
+\label{fig:byn}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{fig_gallery_synth.png}
+\caption{The first synthetic test cloud of every family (65--256 points, relative noise 0.02--0.06): input points (black), ground-truth shape (green), method fit (blue), classical B1 fit (orange).}
+\label{fig:gallery}
+\end{figure}
+
+\subsection{Real activations}
+Table~\ref{tab:real} lists every real dataset and control, and Fig.~\ref{fig:real} shows the clouds with the fitted shapes. The coarse label agrees with the literature on \hthreeAgree{}/\hthreeN{} preregistered datasets; the label-permutation null gives $p=\hthreeP{}$, so \textbf{H3 is not supported} (it is not falsified either, since agreement is not below 50\%).
+
+\paragraph{Successes.} The toy model of superposition with 6 features (R3) is labelled \fitRthreetmsnsix{} ($p=\pRthreetmsnsix{}$), with a fitted vertex on every feature direction (the octahedron of \citealp{elhage2022tms}). Llama's character-count manifold (R4) is labelled \fitRfourllamacounting{} ($p=\pRfourllamacounting{}$), a curve as in \citet{gurnee2025linebreaks}; under the preregistered rule a helix claim is not made because ringing is not rejected. Temperature (R8a) is labelled \fitReightallamatemperature{}, the arch PCA produces for a smoothly varying ordinal variable \citep{novembre2008horseshoe,antognini2018walks}, which agrees with the ``line'' of \citet{bhalla2026sae} at the coarse level. Colours (R7) are labelled \fitRsevenllamacolors{}, a curved surface as reported (paraboloid in \citealp{bhalla2026sae}).
+
+\paragraph{Failures.} (i) GPT-2's positional embeddings (R1) are a 1D spiral whose radius varies along the curve; no family represents it (helix has constant radius, ringing three harmonics), and the classifier selects \fitRonegpttwowpos{} ($p=\pRonegpttwowpos{}$), a surface the spiral lies on. The held-out residual cannot reveal this error because held-out points also lie on the sphere. (ii) Weekdays and months (R5) form one tight cluster per token, 7 and 12 clusters, more than the 6 centroids the clusters family allows; the fitter threads a \fitRfiveallamaweekdays{} through them. (iii) Years (R6) and the grokked embeddings (R2) keep only \varRsixllamayears{} and \varRtwogrokkingWE{} of the variance in the top three components and are flagged ($\lambda_3/\lambda_4<1.5$): the 3D view cuts through a higher-dimensional structure, as expected for the several Fourier circles of a grokked model \citep{nanda2023progress}. (iv) Age (R8b) is a branching curve and true/false city statements (R9) two overlapping clouds of very different spread; both are outside the vocabulary (labelled \fitReightbllamaage{} and \fitRninellamatruthcities{}).
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{fig_real.png}
+\caption{Real activation clouds in their top-3 PCA coordinates, coloured by concept value, with the fitted shape (red; crosses for point-set vertices). Titles give the full-cloud fit with its calibrated probability and the majority label over 200 random 80\% subsamples.}
+\label{fig:real}
+\end{figure}
+
+\paragraph{Controls (H4).} Matched-covariance Gaussians are labelled blob in \hfourBlob{} of draws and the ordinal-process controls ringing in \hfourRing{} versus helix in \hfourHelix{}, so H4 passes as preregistered. A post-hoc split shows that this pass relies on the random walks (ringing in \hfourWalkRing{}): the smooth Gaussian-process controls alone are labelled helix in \hfourGpHelix{}. The classifier therefore confuses smooth ordinal processes with helices, the confound the preregistered helix rule guards against; for the fully evaluated Gaussian-process control the held-out residual favours ringing and the rule rejects the helix claim. Randomly initialised GPT-2 positional embeddings and grokking embeddings are labelled blob, but randomly initialised Llama is labelled \fitCthreellamamonthsinit{} for the month prompts: Fig.~\ref{fig:controls} shows genuine clusters, one per input token, because a random transformer still separates token identities. The preregistered expectation ``blob'' for this control was wrong, not the fitter.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{fig_controls.png}
+\caption{Controls: a smooth Gaussian process and a random walk over an ordinal index (C1), and randomly initialised or untrained networks (C3).}
+\label{fig:controls}
+\end{figure}
+
+\begin{sidewaystable}
+\centering
+\caption{Real datasets and controls (C1 shows the first of 10 draws of each process). Flags: $\lambda_3/\lambda_4<1.5$ (gap); OOD: residual above the synthetic 95th percentile of correct fits at that $N$. Held-out residuals, matched-Gaussian rates and model/layer details are in the full table in \texttt{reports/exp02\_real\_activations.md}.}
+\label{tab:real}
+\input{generated/real_table_compact.tex}
+\end{sidewaystable}
