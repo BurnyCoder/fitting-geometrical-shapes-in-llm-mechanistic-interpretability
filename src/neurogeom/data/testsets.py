@@ -33,10 +33,13 @@ def _pad(t: torch.Tensor, n: int, value=0.0) -> torch.Tensor:
 def build_test_set(cfg: dict, stream: str = "test", per_cell: int | None = None, device="cuda") -> list[dict]:
     """Returns one padded batch dict per (N-bin, noise-bin) with all families mixed; cached on disk."""
     per_cell = per_cell or cfg["eval"]["test_per_cell"]
-    cache = Path(cfg["paths"]["data_cache"]) / f"testset_{stream}_seed{cfg['seed']}_{per_cell}.pt"
+    # The evaluation data seed is independent of the model seed, so every trained model (all seeds and
+    # ablations) is evaluated on exactly the same clouds -> paired comparisons across runs.
+    ds = cfg.get("data_seed", 0)
+    cache = Path(cfg["paths"]["data_cache"]) / f"testset_{stream}_dataseed{ds}_{per_cell}.pt"
     if cache.exists():
         return torch.load(cache, weights_only=False)
-    gen = make_generator(stream_seed(cfg["seed"], stream), device)
+    gen = make_generator(stream_seed(ds, stream), device)
     cells = []
     for bi, (lo, hi) in enumerate(cfg["eval"]["n_bins"]):
         for si, (slo, shi) in enumerate(cfg["eval"]["noise_bins"]):

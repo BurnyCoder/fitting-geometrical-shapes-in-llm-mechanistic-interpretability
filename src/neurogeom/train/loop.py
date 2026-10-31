@@ -37,7 +37,7 @@ def lr_lambda(step: int, warmup: int, total: int) -> float:
 
 def build_val_set(cfg: dict, device) -> list[list[dict]]:
     """Fixed validation set from the `val` stream: for each N-bin, one mixed batch of all families."""
-    gen = make_generator(stream_seed(cfg["seed"], "val"), device)
+    gen = make_generator(stream_seed(cfg.get("data_seed", 0), "val"), device)   # same val set for every run
     per_bin = max(len(FAMILIES), cfg["train"]["val_size"] // len(cfg["eval"]["n_bins"]))
     out = []
     for lo, hi in cfg["eval"]["n_bins"]:

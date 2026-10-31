@@ -1,7 +1,8 @@
 # Default configuration. Other configs (smoke.yaml, main.yaml, ablation_*.yaml) override a subset.
 # Every hyperparameter choice is justified in reports/preregistration.md and docs/methodology.md.
 
-seed: 0
+seed: 0          # model/training seed
+data_seed: 0     # seed of the fixed validation/test sets (shared by every run for paired comparisons)
 device: cuda
 
 # ---------------------------------------------------------------- synthetic data generator
@@ -86,3 +87,6 @@ eval:
   baseline_per_cell: 20       # baselines run on the first 20 samples per family of every cell (3120 samples)
   val_per_cell: 10            # temperature-calibration set from the `val` stream
   gbm_per_family: 1500        # B2 training clouds per family
+  baselines: true             # run B1-B3 (only needed once per test set)
+  variants: true              # A3 (no refinement) and A5 (selection rules) from the same network
+  method_subset_per_cell: null  # null = full test set; seeds/ablations use a fixed per-family subset

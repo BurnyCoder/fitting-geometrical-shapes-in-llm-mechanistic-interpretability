@@ -64,11 +64,12 @@ def _alt_choice(fit, rule: str):
     return fams[s], fit.cand_raws[s]
 
 
-def eval_method(model, cfg, cells, device, temperature: float, name: str = "method", variants: bool = True) -> tuple[list, dict]:
+def eval_method(model, cfg, cells, device, temperature: float, name: str = "method", variants: bool = True,
+                subset_per_cell: int | None = None) -> tuple[list, dict]:
     rows, probs, labels = [], [], []
     t0 = time.time()
     done = 0
-    for cell, ii, b in iterate(cells, 512, device):
+    for cell, ii, b in iterate(cells, 512, device, subset_per_cell=subset_per_cell):
         bs = batch_size_for(cell)
         for s in range(0, len(ii), bs):
             sl = slice(s, s + bs)
@@ -169,7 +170,7 @@ def _random_raw(fi: int, p: dict) -> torch.Tensor:
     return f.encode(p)[0]
 
 
-def run_synth_eval(cfg: dict, baselines: bool = True) -> dict:
+def run_synth_eval(cfg: dict, baselines: bool | None = None) -> dict:
     from neurogeom.train.loop import load_model
     device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")
     out_dir = Path(cfg["paths"]["results"]) / "synth"
@@ -178,7 +179,10 @@ def run_synth_eval(cfg: dict, baselines: bool = True) -> dict:
     temperature = calibrate_temperature(model, cfg, device)
     cells = build_test_set(cfg, device=device)
     log.info("test set: %d samples", n_samples(cells))
-    rows, pr = eval_method(model, cfg, cells, device, temperature)
+    ec = cfg["eval"]
+    baselines = ec.get("baselines", True) if baselines is None else baselines
+    rows, pr = eval_method(model, cfg, cells, device, temperature, variants=ec.get("variants", True),
+                           subset_per_cell=ec.get("method_subset_per_cell"))
     np.savez_compressed(out_dir / "probs.npz", **pr)
     if baselines:
         gbm_path = Path(cfg["paths"]["data_cache"]) / f"gbm_seed{cfg['seed']}.pkl"

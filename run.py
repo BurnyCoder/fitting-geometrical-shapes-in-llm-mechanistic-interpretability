@@ -117,8 +117,18 @@ def main(argv=None):
     ap.add_argument("--config", default=None, help="YAML file in configs/ (merged over configs/base.yaml)")
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--run-name", default=None)
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                    help="override a config value, e.g. --set eval.baselines=false (YAML-parsed value)")
     args = ap.parse_args(argv)
     overrides = {}
+    import yaml
+    for kv in args.set:
+        key, val = kv.split("=", 1)
+        node = overrides
+        *parents, leaf = key.split(".")
+        for k in parents:
+            node = node.setdefault(k, {})
+        node[leaf] = yaml.safe_load(val)
     if args.seed is not None:
         overrides["seed"] = args.seed
     if args.run_name:
