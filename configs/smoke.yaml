@@ -17,5 +17,8 @@ eval:
   real_subsample_reps: 5
   classical_restarts: 2
   classical_steps: 50
+  baseline_per_cell: 1
+  val_per_cell: 2
+  gbm_per_family: 20
 infer:
   refine_steps: 30

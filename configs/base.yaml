@@ -81,5 +81,8 @@ eval:
   bootstrap_reps: 2000
   real_subsample_reps: 200
   real_subsample_frac: 0.8
-  classical_restarts: 8
-  classical_steps: 500
+  classical_restarts: 4       # PCA-axis-permutation inits + 1 random rotation (see baselines/classical.py)
+  classical_steps: 300        # same budget as the method's refinement
+  baseline_per_cell: 20       # baselines run on the first 20 samples per family of every cell (3120 samples)
+  val_per_cell: 10            # temperature-calibration set from the `val` stream
+  gbm_per_family: 1500        # B2 training clouds per family
