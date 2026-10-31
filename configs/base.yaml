@@ -1,0 +1,83 @@
+# Default configuration. Other configs (smoke.yaml, main.yaml, ablation_*.yaml) override a subset.
+# Every hyperparameter choice is justified in reports/preregistration.md and docs/methodology.md.
+
+seed: 0
+device: cuda
+
+# ---------------------------------------------------------------- synthetic data generator
+synth:
+  n_min: 5            # smallest point cloud (7 weekdays / 12 months are realistic real-data sizes)
+  n_max: 1024         # GPT-2 W_pos has 1023 usable rows
+  noise_min: 0.003    # isotropic Gaussian noise std, in units of the shape's RMS radius (log-uniform)
+  noise_max: 0.15
+  noise_free_frac: 0.10
+  aniso_noise_prob: 0.3       # per-axis noise scales drawn from [0.3, 1] x sigma
+  outlier_prob: 0.3           # probability a sample gets outliers at all
+  outlier_frac_max: 0.10
+  density_modes: [uniform, beta, clumped]   # non-uniform sampling along the shape
+  embed_prob: 0.25            # fraction embedded in R^D with noise in all D dims, then PCA'd back to 3D
+  embed_dims: [16, 64, 256]
+  gen_candidates: 2048        # candidate dense points per shape from which the N observed points are drawn
+
+# ---------------------------------------------------------------- dense sampling for losses
+dense:
+  curve: 256          # samples per 1D curve (line/arc/ellipse/helix/ringing)
+  surface_side: 24    # surfaces use a side x side grid (576 samples)
+  blob: 256           # fixed quasi-random normal samples representing a Gaussian blob
+
+# ---------------------------------------------------------------- model
+model:
+  encoder: set_transformer   # or deepsets (ablation A4)
+  d_model: 128
+  n_heads: 4
+  n_inducing: 16
+  n_isab: 2
+  head_hidden: 256
+
+# ---------------------------------------------------------------- loss
+loss:
+  w_type: 1.0
+  label_smoothing: 0.05
+  w_chamfer: 1.0      # shape-to-shape distance between predicted and ground-truth shape (main loss)
+  w_residual: 0.5     # input points -> predicted shape (makes the fit pass through the points)
+  w_aux_start: 1.0    # symmetry-aware axis/scale terms, annealed to w_aux_end over the first aux_anneal_frac
+  w_aux_end: 0.1
+  aux_anneal_frac: 0.3
+  w_subtype: 0.1      # cluster count k / polytope subtype classification
+  huber_delta: 0.05
+  param_only: false   # ablation A1: replace Chamfer by a parameter-space loss
+
+# ---------------------------------------------------------------- training
+train:
+  steps: 100000
+  batch_size: 256
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  warmup_steps: 2000
+  grad_clip: 1.0
+  amp_bf16: true
+  log_every: 200
+  val_every: 5000
+  val_size: 2048
+  ckpt_every: 10000
+  max_minutes: 100     # wall-clock cap for one seed (8 GB laptop GPU budget)
+
+# ---------------------------------------------------------------- inference
+infer:
+  top_k: 3                # families refined per input
+  refine_steps: 300
+  refine_lr: 1.0e-2
+  refine_back_weight: 0.25  # weight of shape -> points term (prevents extent/radius inflation)
+  selection: classifier     # classifier | gaic | hybrid (ablation A5)
+  refine: true              # ablation A3
+
+# ---------------------------------------------------------------- evaluation
+eval:
+  test_per_cell: 250          # samples per (family, N-bin, noise-bin) cell
+  n_bins: [[5, 12], [13, 64], [65, 256], [257, 1024]]
+  noise_bins: [[0.003, 0.02], [0.02, 0.06], [0.06, 0.15]]
+  bootstrap_reps: 2000
+  real_subsample_reps: 200
+  real_subsample_frac: 0.8
+  classical_restarts: 8
+  classical_steps: 500

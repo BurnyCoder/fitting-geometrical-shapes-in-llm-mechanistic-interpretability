@@ -1,0 +1,27 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Secrets / local config (never commit credentials)
+.env
+
+# Large or regenerable artifacts (models go to the Hugging Face Hub; activations are re-extracted by run.py)
+checkpoints/
+data_cache/
+logs/
+*.pt
+*.safetensors
+*.npz
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+.pytest_cache/

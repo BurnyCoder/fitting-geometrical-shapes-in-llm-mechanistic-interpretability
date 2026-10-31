@@ -1,0 +1,51 @@
+[project]
+name = "neurogeom"
+version = "0.1.0"
+description = "Learned shape-type + parameter fitting for 3D (top-3 PCA) point clouds of neural-network activations"
+readme = "README.md"
+authors = [
+    { name = "Libor Burian (BurnyCoder)", email = "happymancz@email.cz" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "torch==2.14.1",
+    "numpy>=2.1",
+    "scipy>=1.14",
+    "scikit-learn>=1.6",
+    "pandas>=2.2",
+    "matplotlib>=3.9",
+    "plotly>=6.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "tqdm>=4.66",
+    "ripser>=0.6.12",
+    "transformers>=4.57",
+    "accelerate>=1.2",
+    "safetensors>=0.5",
+    "huggingface-hub>=0.30",
+    "bitsandbytes>=0.48",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
+
+# PyTorch CUDA wheels for the RTX 50-series (Blackwell, sm_120) come from the PyTorch index,
+# not PyPI (PyPI Windows wheels are CPU-only). cu130 matches the installed driver (CUDA 13.1).
+# Source: uv docs "Using uv with PyTorch" https://docs.astral.sh/uv/guides/integration/pytorch/
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: long-running tests (deselect with -m 'not slow')"]

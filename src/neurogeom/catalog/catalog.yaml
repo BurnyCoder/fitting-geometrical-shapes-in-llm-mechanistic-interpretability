@@ -1,0 +1,308 @@
+# Catalog of empirically reported geometric shapes in neural-network representations.
+#
+# Global context: deliverable 1 of the project. Each entry maps a published finding to one of the 13
+# shape families the fitter predicts (`vocab_class`) or marks it `out-of-vocab`. `top3_pca` records
+# whether the source shows the shape in the top-3 principal components of raw activations (the input
+# format of our fitter): yes / partial / no / n/a / unknown. `verified`: how the entry was checked
+# (abstract = arXiv abstract page; fulltext = paper HTML/PDF; post = original blog post; secondary =
+# only via a secondary source). Rendered to docs/shape_catalog.md by src/neurogeom/report/render.py.
+#
+# Literature review: 2026-10-31 (three research passes + spot checks of full texts).
+
+entries:
+  # ---------------------------------------------------------------- circles / rings
+  - id: engels_days_months
+    shape: circle (overall a cone; PC1 = intensity/radius)
+    vocab_class: arc
+    concept: days of the week, months of the year (also 20th-century years in GPT-2)
+    models: GPT-2-small L7 (SAE clusters); Mistral-7B L8/L30; Llama-3-8B L5
+    method: SAE feature clusters + PCA of reconstructions; also PCA of raw activations
+    top3_pca: "yes (PCs 1-2 or 2-3)"
+    citation: "Engels et al. 2024/2025, Not All Language Model Features Are One-Dimensionally Linear (ICLR 2025)"
+    url: https://arxiv.org/abs/2405.14860
+    code: https://github.com/JoshEngels/MultiDimensionalFeatures
+    verified: fulltext
+  - id: bhalla_days
+    shape: circle ("days of the week organized in a cycle")
+    vocab_class: arc
+    concept: days of the week (prompt "It's {time} on day")
+    models: Llama-3.1-8B L19, last token
+    method: PCA of raw activations
+    top3_pca: "yes"
+    citation: "Bhalla et al. 2026, Do Sparse Autoencoders Capture Concept Manifolds?"
+    url: https://arxiv.org/abs/2604.28119
+    verified: fulltext
+  - id: grokking_clock
+    shape: circles (one per key Fourier frequency, "clock")
+    vocab_class: arc
+    concept: residues in modular addition (a+b mod p)
+    models: 1-layer transformer trained from scratch, p=113 / p=59
+    method: PCA / Fourier basis of the embedding matrix W_E
+    top3_pca: "yes (PCs 1-2; PC3 belongs to another frequency)"
+    citation: "Nanda et al. 2023, Progress measures for grokking via mechanistic interpretability; Zhong et al. 2023, The Clock and the Pizza"
+    url: https://arxiv.org/abs/2301.05217
+    url2: https://arxiv.org/abs/2306.17844
+    verified: abstract
+  - id: incontext_graph
+    shape: ring / square grid / hexagonal lattice (in-context graph structure)
+    vocab_class: arc
+    concept: graph defined in context by random walks over tokens
+    models: Llama-3.1-8B L26
+    method: PCA of token-mean activations
+    top3_pca: "yes (top-2 PCs)"
+    citation: "C. F. Park et al. 2025, ICLR: In-Context Learning of Representations"
+    url: https://arxiv.org/abs/2501.00070
+    verified: abstract
+  - id: emotion_circumplex
+    shape: circle (valence-arousal circumplex)
+    vocab_class: arc
+    concept: emotions
+    models: Llama-3.1-8B, Qwen3-8B/14B
+    method: PCA + ridge regression on steering vectors
+    top3_pca: "yes (2D)"
+    citation: "Sun et al. 2026, Valence-Arousal Subspace in LLMs: Circular Emotion Geometry and Multi-Behavioral Control"
+    url: https://arxiv.org/abs/2604.03147
+    verified: abstract
+  - id: head_direction_ring
+    shape: ring
+    vocab_class: arc
+    concept: head direction (neuroscience analogue)
+    models: mouse anterodorsal thalamic nucleus
+    method: unsupervised manifold fitting (SPUD)
+    top3_pca: "yes"
+    citation: "Chaudhuri, Gercek, Pandey, Peyrache, Fiete 2019, The intrinsic attractor manifold and population dynamics of a canonical cognitive circuit across waking and sleep, Nature Neuroscience"
+    url: https://doi.org/10.1038/s41593-019-0460-x
+    verified: secondary (title/venue via Crossref; ring claim from secondary sources)
+  # ---------------------------------------------------------------- helices / ringing curves
+  - id: gpt2_wpos_helix
+    shape: helix
+    vocab_class: helix
+    concept: learned absolute positional embeddings (W_pos, 1024 x 768)
+    models: GPT-2 small/medium/large (weak in XL)
+    method: PCA of the positional embedding matrix (no forward pass)
+    top3_pca: "yes (~90% variance in 3 PCs for GPT-2 small)"
+    citation: "Yedidia 2023, GPT-2's positional embedding matrix is a helix (LessWrong)"
+    url: https://www.lesswrong.com/posts/qvWP3aBDBaqXvPNhS/gpt-2-s-positional-embedding-matrix-is-a-helix
+    verified: post
+  - id: linebreak_counting
+    shape: twisting helix-like rippled curve (1D manifold in ~6D)
+    vocab_class: helix
+    concept: character count since last line break
+    models: Claude 3.5 Haiku L2; replicated in Llama-3.1-8B L5 / Qwen3-8B L5 (PC1-3 = 97% variance)
+    method: PCA of per-count mean activations
+    top3_pca: "yes"
+    citation: "Gurnee et al. 2025, When Models Manipulate Manifolds: The Geometry of a Counting Task"
+    url: https://transformer-circuits.pub/2025/linebreaks/index.html
+    url2: https://arxiv.org/abs/2601.04480
+    code: https://github.com/corl-team/counting_manifolds
+    verified: post
+  - id: number_helix
+    shape: generalized helix (line + circles with periods 2, 5, 10, 100)
+    vocab_class: helix
+    concept: integers 0-360
+    models: GPT-J, Pythia-6.9B, Llama-3.1-8B (residual after layer 0)
+    method: Fourier analysis + helix-basis regression on 100 PCs
+    top3_pca: "partial (PC1 ~ linear; helix only in fitted subspace)"
+    citation: "Kantamneni & Tegmark 2025, Language Models Use Trigonometry to Do Addition"
+    url: https://arxiv.org/abs/2502.00873
+    verified: fulltext
+  - id: bhalla_years
+    shape: helix
+    vocab_class: helix
+    concept: years (prompt "The date is year")
+    models: Llama-3.1-8B L19, last token
+    method: PCA of raw activations (Table 1 lists the shape)
+    top3_pca: "unknown (not plotted)"
+    citation: "Bhalla et al. 2026, Do Sparse Autoencoders Capture Concept Manifolds?"
+    url: https://arxiv.org/abs/2604.28119
+    verified: fulltext
+  - id: fourier_numbers
+    shape: periodic Fourier features (circles per digit/period)
+    vocab_class: arc
+    concept: numbers in addition
+    models: pre-trained LLMs (GPT-2 family and others)
+    method: Fourier analysis, probing
+    top3_pca: "unknown"
+    citation: "Zhou et al. 2024, Pre-trained Large Language Models Use Fourier Features to Compute Addition"
+    url: https://arxiv.org/abs/2406.03445
+    verified: abstract
+  # ---------------------------------------------------------------- lines
+  - id: bhalla_lines
+    shape: line
+    vocab_class: line
+    concept: temperature ("Today it's {f} degrees Fahrenheit outside"), age ("They are {age} years old."), formality, sentence length
+    models: Llama-3.1-8B L19, last token
+    method: PCA of raw activations
+    top3_pca: "yes (Fig. 2)"
+    citation: "Bhalla et al. 2026, Do Sparse Autoencoders Capture Concept Manifolds?"
+    url: https://arxiv.org/abs/2604.28119
+    verified: fulltext
+  - id: space_time
+    shape: line / linear map (latitude, longitude, year)
+    vocab_class: line
+    concept: places and historical entities
+    models: Llama-2 7B/13B/70B, mid-depth
+    method: linear ridge probes
+    top3_pca: "no (top PCs separate entity types)"
+    citation: "Gurnee & Tegmark 2024, Language Models Represent Space and Time"
+    url: https://arxiv.org/abs/2310.02207
+    code: https://github.com/wesg52/world-models
+    verified: abstract
+  # ---------------------------------------------------------------- surfaces
+  - id: smds_time_space
+    shape: sphere (cities); circle (dates, time of day); semicircle (events 1900-2000); log-line (durations); clusters (seasons)
+    vocab_class: sphere
+    concept: time and space concepts
+    models: Llama-3.x, Qwen2.5, Gemma-2
+    method: supervised multidimensional scaling (stress-based hypothesis selection)
+    top3_pca: "no (paper: PCA misses subspaces not aligned with max variance)"
+    citation: "Tiblias et al. 2025 (TMLR 2026), Hypothesis-Driven Feature Manifold Analysis in LLMs via Supervised Multi-Dimensional Scaling (v1 title: Shape Happens)"
+    url: https://arxiv.org/abs/2510.01025
+    code: https://github.com/UKPLab/arxiv2025-shape-happens
+    verified: "abstract confirms circles, lines, clusters; sphere-for-cities from a full-text read, not re-verified"
+  - id: bhalla_colors
+    shape: paraboloid ("circular hue and lightness dimensions")
+    vocab_class: paraboloid
+    concept: colors (prompt "The hex code {h_code} is for the color")
+    models: Llama-3.1-8B L19, last token
+    method: PCA of raw activations
+    top3_pca: "yes (Fig. 2)"
+    citation: "Bhalla et al. 2026, Do Sparse Autoencoders Capture Concept Manifolds?"
+    url: https://arxiv.org/abs/2604.28119
+    verified: fulltext
+  - id: modular_disc_torus
+    shape: disc ("pizza") or torus in first layer; circle in later layers
+    vocab_class: torus
+    concept: modular addition
+    models: small MLPs and transformers trained from scratch
+    method: persistent homology
+    top3_pca: "disc yes; torus needs 4D"
+    citation: "Moisescu-Pareja et al. 2025, On the geometry and topology of representations: the manifolds of modular addition; Zhong et al. 2023 (pizza = disc)"
+    url: https://arxiv.org/abs/2512.25060
+    verified: "secondary (abstract only says manifolds studied with topology tools; disc/torus from a full-text read, not re-verified)"
+  - id: grid_cell_torus
+    shape: torus
+    vocab_class: torus
+    concept: grid-cell modules (neuroscience analogue)
+    models: rat medial entorhinal cortex
+    method: persistent cohomology
+    top3_pca: "no (needs 4D)"
+    citation: "Gardner et al. 2022, Toroidal topology of population activity in grid cells, Nature"
+    url: https://doi.org/10.1038/s41586-021-04268-7
+    verified: abstract
+  - id: anisotropy_cone
+    shape: narrow cone (anisotropy)
+    vocab_class: cone
+    concept: all contextual embeddings
+    models: GPT-2, BERT, ELMo
+    method: cosine-similarity statistics
+    top3_pca: "partial (PC1 dominance)"
+    citation: "Ethayarajh 2019, How Contextual are Contextualized Word Representations? Comparing the Geometry of BERT, ELMo, and GPT-2 Embeddings"
+    url: https://arxiv.org/abs/1909.00512
+    verified: "abstract confirms anisotropy ('not isotropic in any layer'); 'narrow cone' wording is from the full text, not re-verified"
+  # ---------------------------------------------------------------- point sets
+  - id: truth_clusters
+    shape: two linearly separated clusters
+    vocab_class: clusters
+    concept: true vs false statements
+    models: LLaMA-13B (and LLaMA-2 family)
+    method: top-2 PCA
+    top3_pca: "yes"
+    citation: "Marks & Tegmark 2024, The Geometry of Truth"
+    url: https://arxiv.org/abs/2310.06824
+    code: https://github.com/saprmarks/geometry-of-truth
+    verified: abstract
+  - id: tms_polytopes
+    shape: antipodal pairs, triangles, pentagons, tetrahedra, square antiprisms
+    vocab_class: polytope
+    concept: features in superposition
+    models: toy ReLU autoencoders
+    method: direct inspection of weight columns
+    top3_pca: "n/a (weights are already low-dimensional)"
+    citation: "Elhage et al. 2022, Toy Models of Superposition"
+    url: https://transformer-circuits.pub/2022/toy_model/index.html
+    code: https://github.com/anthropics/toy-models-of-superposition
+    verified: post
+  - id: categorical_simplices
+    shape: simplices / polytopes; hierarchy orthogonal
+    vocab_class: polytope
+    concept: WordNet categories
+    models: Gemma, LLaMA-3
+    method: estimated concept vectors
+    top3_pca: "no"
+    citation: "K. Park, Choe, Jiang, Veitch 2024, The Geometry of Categorical and Hierarchical Concepts in Large Language Models"
+    url: https://arxiv.org/abs/2406.01506
+    verified: "abstract confirms polytopes for categorical concepts; simplex/orthogonality wording from full text, not re-verified"
+  - id: sae_crystals
+    shape: parallelogram "crystals", lobes
+    vocab_class: polytope
+    concept: SAE decoder directions
+    models: (SAE features of LLMs)
+    method: SAE + LDA
+    top3_pca: "no"
+    citation: "Li, Michaud, Baek, Engels, Sun, Tegmark 2025, The Geometry of Concepts: Sparse Autoencoder Feature Structure"
+    url: https://arxiv.org/abs/2410.19750
+    verified: abstract
+  # ---------------------------------------------------------------- out of vocabulary (not 3D-PCA friendly)
+  - id: bhalla_geography_tree
+    shape: hierarchical tree
+    vocab_class: out-of-vocab
+    concept: geographical coordinates -> country
+    models: Llama-3.1-8B L19
+    method: PCA / probes
+    top3_pca: "unknown"
+    citation: "Bhalla et al. 2026"
+    url: https://arxiv.org/abs/2604.28119
+    verified: fulltext
+  - id: belief_state_fractal
+    shape: fractal inside a 2-simplex
+    vocab_class: out-of-vocab
+    concept: belief states of a hidden Markov process (Mess3)
+    models: 4-layer transformer, d=64
+    method: linear regression probe (not PCA)
+    top3_pca: "no"
+    citation: "Shai et al. 2024, Transformers represent belief state geometry in their residual stream"
+    url: https://arxiv.org/abs/2405.15943
+    verified: abstract
+  - id: klein_bottle_patches
+    shape: Klein bottle
+    vocab_class: out-of-vocab
+    concept: 3x3 natural image patches (and reportedly first-layer CNN filters)
+    models: natural image statistics; CNNs (secondary claim)
+    method: persistent homology
+    top3_pca: "no (needs 4D)"
+    citation: "Carlsson et al. 2008, On the Local Behavior of Spaces of Natural Images, IJCV"
+    url: https://link.springer.com/article/10.1007/s11263-007-0056-x
+    verified: abstract
+  - id: cnn_filter_circle
+    shape: circle of rotating edge filters
+    vocab_class: arc
+    concept: first-layer convolution filters
+    models: CNNs on MNIST, CIFAR-10, SVHN, ImageNet
+    method: topological data analysis
+    top3_pca: "n/a"
+    citation: "Bruel Gabrielsson & Carlsson 2018, Exposition and Interpretation of the Topology of Neural Networks"
+    url: https://arxiv.org/abs/1810.03234
+    verified: "abstract ('a simple circle consisting of rotating edges' in conv layers)"
+  - id: gru_onion
+    shape: nested "onion" shells (magnitude-coded position)
+    vocab_class: out-of-vocab
+    concept: sequence position
+    models: gated RNNs (GRUs)
+    method: interventions
+    top3_pca: "no"
+    citation: "Csordas et al. 2024, Recurrent Neural Networks Learn to Store and Generate Sequences using Non-Linear Representations"
+    url: https://arxiv.org/abs/2408.10920
+    verified: "abstract ('a particular order of magnitude, rather than a direction'); 'onion' term from full text, not re-verified"
+# Known confounder (not a shape claim): the PCA "horseshoe"/"arch"/ringing artifact. Any smoothly
+# varying ordinal variable gives PCs ~ cos(k*pi*s), i.e. an arch in PC1-2 and a Lissajous/helix-like
+# curve in PC1-3, even if the representation is not "curved" in any meaningful sense.
+confounders:
+  - id: pca_horseshoe
+    shape: ringing curve c + sum_k a_k cos(k*pi*s) e_k
+    vocab_class: ringing
+    citation: "Novembre & Stephens 2008 (Nature Genetics); Diaconis, Goel & Holmes 2008; Antognini & Sohl-Dickstein 2018; Shinn 2023 (PNAS)"
+    url: https://doi.org/10.1038/ng.139
+    url2: https://arxiv.org/abs/0811.1477
+    url3: https://arxiv.org/abs/1806.08805
+    url4: https://doi.org/10.1073/pnas.2311420120
