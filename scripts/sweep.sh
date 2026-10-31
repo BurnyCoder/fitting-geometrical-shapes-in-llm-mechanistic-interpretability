@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Staged follow-up experiments after main_s0 (and any extra models, controls or baselines) is published. Each stage
+# Staged follow-up experiments after main_s0 (and any trained control or baseline models) is published. Each stage
 # is run, then published (paper, results, reports, README, website, models on Hugging Face) before the next starts:
 #   bash scripts/sweep.sh ablations     # A0 reference + A1/A2/A4/A6, shared short budget (12k steps / 60 min)
 #   bash scripts/sweep.sh sensitivity   # seeds 1-2 of the main config; learning rate x3 and /3 at the ablation
