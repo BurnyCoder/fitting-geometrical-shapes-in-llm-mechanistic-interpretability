@@ -33,23 +33,29 @@ def matrix_to_rot6d(r: torch.Tensor) -> torch.Tensor:
 
 
 def random_rotation(n: int, generator: torch.Generator | None = None, device="cpu", dtype=torch.float32) -> torch.Tensor:
-    """Haar-uniform random rotations via QR of a Gaussian matrix (Mezzadri 2007, sign-corrected)."""
-    a = torch.randn(n, 3, 3, generator=generator, device=device, dtype=dtype)
-    q, r = torch.linalg.qr(a)
-    # Multiply columns by sign(diag(R)) so Q is Haar-distributed (Mezzadri, arXiv math-ph/0609050).
-    d = torch.sign(torch.diagonal(r, dim1=-2, dim2=-1))
-    d = torch.where(d == 0, torch.ones_like(d), d)
-    q = q * d.unsqueeze(-2)
-    # Flip the last column where det = -1 to land in SO(3) (proper rotations only).
-    det = torch.linalg.det(q)
-    q[..., :, 2] = q[..., :, 2] * det.sign().unsqueeze(-1)
-    return q
+    """Haar-uniform random rotations from normalised 4D Gaussians = uniform unit quaternions
+    (Shoemake 1992, "Uniform random rotations", Graphics Gems III). Closed form, no batched QR: batched
+    torch.linalg.qr on CUDA launches one kernel per matrix and dominated the generator's run time."""
+    q = torch.randn(n, 4, generator=generator, device=device, dtype=dtype)
+    w, x, y, z = F.normalize(q, dim=-1).unbind(-1)
+    # standard unit-quaternion -> rotation-matrix formula
+    return torch.stack([
+        torch.stack([1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], -1),
+        torch.stack([2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], -1),
+        torch.stack([2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)], -1),
+    ], -2)
+
+
+def det3(m: torch.Tensor) -> torch.Tensor:
+    """Determinant of (..., 3, 3) matrices via the scalar triple product (no LU / cusolver call)."""
+    return (torch.cross(m[..., :, 0], m[..., :, 1], dim=-1) * m[..., :, 2]).sum(-1)
 
 
 def nearest_orthogonal(m: torch.Tensor) -> torch.Tensor:
-    """Project (..., 3, 3) matrices onto O(3) (polar factor U V^T; may be a reflection)."""
-    u, _, vh = torch.linalg.svd(m)
-    return u @ vh
+    """Project (..., 3, 3) matrices onto O(3) (polar factor U V^T; may be a reflection).
+    Tiny batched SVDs are much faster on the CPU than through cuSOLVER, so they run there."""
+    u, _, vh = torch.linalg.svd(m.detach().cpu().double())
+    return (u @ vh).to(m.device, m.dtype)
 
 
 def nearest_rotation(m: torch.Tensor) -> torch.Tensor:

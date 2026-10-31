@@ -83,6 +83,11 @@ def add_outliers(x: torch.Tensor, prob: float, frac_max: float, gen: torch.Gener
 
 
 def random_embedding(b: int, d: int, gen: torch.Generator, device) -> torch.Tensor:
-    """Random orthonormal 3-frames in R^D, (B, D, 3), to embed 3D shapes into activation-like spaces."""
-    q, _ = torch.linalg.qr(torch.randn(b, d, 3, generator=gen, device=device))
-    return q
+    """Random orthonormal 3-frames in R^D, (B, D, 3), to embed 3D shapes into activation-like spaces.
+    Gram-Schmidt on 3 Gaussian vectors (= Haar-distributed frame), written out to avoid batched QR."""
+    a = torch.randn(b, d, 3, generator=gen, device=device)
+    e1 = torch.nn.functional.normalize(a[..., 0], dim=-1)
+    v2 = a[..., 1] - (a[..., 1] * e1).sum(-1, keepdim=True) * e1
+    e2 = torch.nn.functional.normalize(v2, dim=-1)
+    v3 = a[..., 2] - (a[..., 2] * e1).sum(-1, keepdim=True) * e1 - (a[..., 2] * e2).sum(-1, keepdim=True) * e2
+    return torch.stack([e1, e2, torch.nn.functional.normalize(v3, dim=-1)], -1)

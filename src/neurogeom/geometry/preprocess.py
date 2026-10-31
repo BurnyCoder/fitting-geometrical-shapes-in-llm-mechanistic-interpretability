@@ -66,8 +66,13 @@ def normalize_batch(x: torch.Tensor, mask: torch.Tensor | None = None) -> tuple[
     xc = (x - mean.unsqueeze(1)) * mf                                      # centred, padding zeroed
     cov = xc.transpose(1, 2) @ xc / cnt.unsqueeze(-1)                      # (B, D, D) population covariance
     if d <= 512:
-        evals, evecs = torch.linalg.eigh(cov.double())                     # ascending eigenvalues
-        evals, evecs = evals.flip(-1).to(x.dtype), evecs.flip(-1).to(x.dtype)
+        # float64 on CPU (real data, exactness); the input dtype on GPU, because consumer GPUs run FP64
+        # at ~1/64 of FP32 throughput (an eigh of 160 x 256 x 256 took 0.25 s in FP64 on the RTX 5070).
+        # Small matrices (D <= 16) are faster on the CPU than through cuSOLVER's batched eigh.
+        small = d <= 16
+        work = cov.detach().cpu().double() if (cov.device.type == "cpu" or small) else cov
+        evals, evecs = torch.linalg.eigh(work)                             # ascending eigenvalues
+        evals, evecs = evals.flip(-1).to(x.device, x.dtype), evecs.flip(-1).to(x.device, x.dtype)
     else:  # large D: SVD of the centred data is cheaper than eigh of a D x D covariance
         _, s, vh = torch.linalg.svd(xc, full_matrices=False)
         evals, evecs = (s ** 2) / cnt, vh.transpose(1, 2)
@@ -78,7 +83,7 @@ def normalize_batch(x: torch.Tensor, mask: torch.Tensor | None = None) -> tuple[
     scores = xc @ basis
     scores, basis = _sign_fix(scores, basis, mask.to(x.dtype))
     if d == 3:  # force a right-handed frame so handedness (e.g. of a helix) is preserved
-        det = torch.linalg.det(basis)
+        det = (torch.cross(basis[..., 0], basis[..., 1], dim=-1) * basis[..., 2]).sum(-1)
         flip = torch.where(det < 0, -1.0, 1.0).to(x.dtype)
         basis = basis.clone()
         basis[..., 2] = basis[..., 2] * flip.unsqueeze(-1)
