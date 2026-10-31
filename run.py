@@ -77,9 +77,9 @@ def phase_gallery(cfg):
     import json
     import torch
     from neurogeom.eval.gallery import build_gallery
-    from neurogeom.train.loop import load_model
+    from neurogeom.train.loop import final_checkpoint, load_model
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model, _ = load_model(Path(cfg["paths"]["checkpoints"]) / "final.pt", dev)
+    model, _ = load_model(final_checkpoint(cfg), dev)
     t = json.load(open(Path(cfg["paths"]["results"]) / "synth" / "meta.json"))["temperature"]
     build_gallery(model, cfg, t, dev, Path(cfg["paths"]["results"]) / "gallery.json")
 

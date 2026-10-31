@@ -171,11 +171,11 @@ def _random_raw(fi: int, p: dict) -> torch.Tensor:
 
 
 def run_synth_eval(cfg: dict, baselines: bool | None = None) -> dict:
-    from neurogeom.train.loop import load_model
+    from neurogeom.train.loop import final_checkpoint, load_model
     device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")
     out_dir = Path(cfg["paths"]["results"]) / "synth"
     out_dir.mkdir(parents=True, exist_ok=True)
-    model, _ = load_model(Path(cfg["paths"]["checkpoints"]) / "final.pt", device)
+    model, _ = load_model(final_checkpoint(cfg), device)
     temperature = calibrate_temperature(model, cfg, device)
     cells = build_test_set(cfg, device=device)
     log.info("test set: %d samples", n_samples(cells))
@@ -197,7 +197,7 @@ def run_synth_eval(cfg: dict, baselines: bool | None = None) -> dict:
         rows += eval_baselines(cfg, cells, device, gbm, cfg["eval"]["baseline_per_cell"])
     df = pd.DataFrame(rows)
     df.to_csv(out_dir / "per_sample.csv", index=False)
-    meta = {"temperature": temperature, "n_test": n_samples(cells), "checkpoint": str(Path(cfg["paths"]["checkpoints"]) / "final.pt")}
+    meta = {"temperature": temperature, "n_test": n_samples(cells), "checkpoint": str(final_checkpoint(cfg))}
     json.dump(meta, open(out_dir / "meta.json", "w"), indent=2)
     log.info("eval-synth done: %d rows -> %s", len(df), out_dir)
     return meta

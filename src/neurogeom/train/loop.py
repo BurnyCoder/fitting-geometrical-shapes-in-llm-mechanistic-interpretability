@@ -187,3 +187,9 @@ def load_model(path: str | Path, device=None) -> tuple[ShapeFitter, dict]:
     model.load_state_dict(ck["model"])
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return model.to(device).eval(), cfg
+
+
+def final_checkpoint(cfg: dict) -> Path:
+    """Checkpoint evaluated by a run: its own final.pt, or eval.checkpoint when set (inference-only
+    sensitivity runs re-evaluate main_s0's weights under different inference hyperparameters)."""
+    return Path(cfg["eval"].get("checkpoint") or Path(cfg["paths"]["checkpoints"]) / "final.pt")

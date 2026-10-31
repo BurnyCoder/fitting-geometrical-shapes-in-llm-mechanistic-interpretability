@@ -154,9 +154,9 @@ def eval_dataset(model, path: Path, cfg: dict, temperature: float, device, thres
 
 
 def run_real_eval(cfg: dict, light_controls: bool = True) -> list[dict]:
-    from neurogeom.train.loop import load_model
+    from neurogeom.train.loop import final_checkpoint, load_model
     device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")
-    model, _ = load_model(Path(cfg["paths"]["checkpoints"]) / "final.pt", device)
+    model, _ = load_model(final_checkpoint(cfg), device)
     meta_p = Path(cfg["paths"]["results"]) / "synth" / "meta.json"
     temperature = json.load(open(meta_p))["temperature"] if meta_p.exists() else 1.0
     thresholds = ood_threshold(cfg)

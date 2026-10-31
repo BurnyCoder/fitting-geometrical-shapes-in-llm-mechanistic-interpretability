@@ -78,6 +78,7 @@ infer:
 # ---------------------------------------------------------------- evaluation
 eval:
   test_per_cell: 250          # samples per (family, N-bin, noise-bin) cell
+  checkpoint: null            # evaluate this checkpoint instead of the run's own final.pt (inference-only sensitivity)
   n_bins: [[5, 12], [13, 64], [65, 256], [257, 1024]]
   noise_bins: [[0.003, 0.02], [0.02, 0.06], [0.06, 0.15]]
   bootstrap_reps: 2000
