@@ -64,11 +64,12 @@ def _alt_choice(fit, rule: str):
     return fams[s], fit.cand_raws[s]
 
 
-def eval_method(model, cfg, cells, device, temperature: float, name: str = "method", variants: bool = True) -> tuple[list, dict]:
+def eval_method(model, cfg, cells, device, temperature: float, name: str = "method", variants: bool = True,
+                subset_per_cell: int | None = None) -> tuple[list, dict]:
     rows, probs, labels = [], [], []
     t0 = time.time()
     done = 0
-    for cell, ii, b in iterate(cells, 512, device):
+    for cell, ii, b in iterate(cells, 512, device, subset_per_cell=subset_per_cell):
         bs = batch_size_for(cell)
         for s in range(0, len(ii), bs):
             sl = slice(s, s + bs)
@@ -95,31 +96,45 @@ def eval_method(model, cfg, cells, device, temperature: float, name: str = "meth
 
 def eval_baselines(cfg, cells, device, gbm, per_cell: int) -> list:
     rows = []
-    ec = cfg["eval"]
     back_w = cfg["infer"]["refine_back_weight"]
     gen = make_generator(stream_seed(cfg["seed"], "test", salt="baselines"), device)
     t0 = time.time()
-    for cell, ii, b in iterate(cells, 32, device, subset_per_cell=per_cell):
-        meta = sample_meta(cell, ii, b)
-        x, m = b["x"], b["mask"]
-        # B1: classical fit of every family + geometric AIC
-        cands, sel = classical.fit_classical(x, m, ec["classical_steps"], back_w, gen, restarts=ec["classical_restarts"])
-        ci = sel["cand_index"].tolist()
-        b1 = ([cands[c]["fi"] for c in ci], [cands[c]["raw"][i] for i, c in enumerate(ci)])
-        amb = ambiguity(cands, b["family"])
-        # B2: features + GBM, then the classical fit of the predicted family (reusing B1's per-family fits)
-        feats = features_gbm.features_batch(x, m)
-        pred = gbm.predict(feats)
-        b2 = ([int(p) for p in pred], [best_cand_for(cands, int(p), i, m)["raw"] for i, p in enumerate(pred)])
-        # B3: null (blob), always-circle, random shape
-        b3a = ([INDEX["blob"]] * len(ii), [best_cand_for(cands, INDEX["blob"], i, m)["raw"] for i in range(len(ii))])
-        b3b = ([INDEX["arc"]] * len(ii), [best_cand_for(cands, INDEX["arc"], i, m)["raw"] for i in range(len(ii))])
-        rnd = trivial.random_shapes(len(ii), gen, device)
-        b3c = ([fi for fi, _ in rnd], [_random_raw(fi, p) for fi, p in rnd])
-        for name, (fam, raws) in {"B1_classical": b1, "B2_features": b2, "B3a_null": b3a, "B3b_circle": b3b, "B3c_random": b3c}.items():
-            for k, (mm, r) in enumerate(zip(meta, shape_metrics(fam, raws, b))):
-                rows.append({"system": name, **mm, **r, "prob_pred": np.nan, "ambiguous": bool(amb[k])})
-        log.info("baselines: cell N-bin %d noise-bin %d batch done (%.1f min)", cell["n_bin"], cell["noise_bin"], (time.time() - t0) / 60)
+    # Classical fitting is kernel-launch bound like everything else here: large batches cost about the same
+    # wall time per batch as small ones (256 clouds for N <= 256, 64 for the largest bin to stay within 8 GB).
+    for cell, ii, b in iterate(cells, 256, device, subset_per_cell=per_cell):
+        bs = 256 if cell["x"].shape[1] <= 256 else 64
+        for s0 in range(0, len(ii), bs):
+            sl = slice(s0, s0 + bs)
+            b_sub = {k: (v[sl] if torch.is_tensor(v) else v) for k, v in b.items()}
+            rows += _baseline_batch(cfg, cell, ii[sl], b_sub, gbm, gen, back_w)
+            log.info("baselines: cell N-bin %d noise-bin %d, %d clouds done (%.1f min)", cell["n_bin"], cell["noise_bin"],
+                     len(ii[sl]), (time.time() - t0) / 60)
+    return rows
+
+
+def _baseline_batch(cfg, cell, ii, b, gbm, gen, back_w) -> list:
+    """B1, B2 and B3 on one batch of test clouds; returns per-sample metric rows."""
+    ec = cfg["eval"]
+    meta = sample_meta(cell, ii, b)
+    x, m = b["x"], b["mask"]
+    # B1: classical fit of every family + geometric AIC
+    cands, sel = classical.fit_classical(x, m, ec["classical_steps"], back_w, gen, restarts=ec["classical_restarts"])
+    ci = sel["cand_index"].tolist()
+    b1 = ([cands[c]["fi"] for c in ci], [cands[c]["raw"][i] for i, c in enumerate(ci)])
+    amb = ambiguity(cands, b["family"])
+    # B2: features + GBM, then the classical fit of the predicted family (reusing B1's per-family fits)
+    pred = gbm.predict(features_gbm.features_batch(x, m))
+    b2 = ([int(p) for p in pred], [best_cand_for(cands, int(p), i, m)["raw"] for i, p in enumerate(pred)])
+    # B3: null (blob), always-circle, random shape
+    n = len(ii)
+    b3a = ([INDEX["blob"]] * n, [best_cand_for(cands, INDEX["blob"], i, m)["raw"] for i in range(n)])
+    b3b = ([INDEX["arc"]] * n, [best_cand_for(cands, INDEX["arc"], i, m)["raw"] for i in range(n)])
+    rnd = trivial.random_shapes(n, gen, x.device)
+    b3c = ([fi for fi, _ in rnd], [_random_raw(fi, p) for fi, p in rnd])
+    rows = []
+    for name, (fam, raws) in {"B1_classical": b1, "B2_features": b2, "B3a_null": b3a, "B3b_circle": b3b, "B3c_random": b3c}.items():
+        for k, (mm, r) in enumerate(zip(meta, shape_metrics(fam, raws, b))):
+            rows.append({"system": name, **mm, **r, "prob_pred": np.nan, "ambiguous": bool(amb[k])})
     return rows
 
 
@@ -155,16 +170,19 @@ def _random_raw(fi: int, p: dict) -> torch.Tensor:
     return f.encode(p)[0]
 
 
-def run_synth_eval(cfg: dict, baselines: bool = True) -> dict:
-    from neurogeom.train.loop import load_model
+def run_synth_eval(cfg: dict, baselines: bool | None = None) -> dict:
+    from neurogeom.train.loop import final_checkpoint, load_model
     device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")
     out_dir = Path(cfg["paths"]["results"]) / "synth"
     out_dir.mkdir(parents=True, exist_ok=True)
-    model, _ = load_model(Path(cfg["paths"]["checkpoints"]) / "final.pt", device)
+    model, _ = load_model(final_checkpoint(cfg), device)
     temperature = calibrate_temperature(model, cfg, device)
     cells = build_test_set(cfg, device=device)
     log.info("test set: %d samples", n_samples(cells))
-    rows, pr = eval_method(model, cfg, cells, device, temperature)
+    ec = cfg["eval"]
+    baselines = ec.get("baselines", True) if baselines is None else baselines
+    rows, pr = eval_method(model, cfg, cells, device, temperature, variants=ec.get("variants", True),
+                           subset_per_cell=ec.get("method_subset_per_cell"))
     np.savez_compressed(out_dir / "probs.npz", **pr)
     if baselines:
         gbm_path = Path(cfg["paths"]["data_cache"]) / f"gbm_seed{cfg['seed']}.pkl"
@@ -179,7 +197,7 @@ def run_synth_eval(cfg: dict, baselines: bool = True) -> dict:
         rows += eval_baselines(cfg, cells, device, gbm, cfg["eval"]["baseline_per_cell"])
     df = pd.DataFrame(rows)
     df.to_csv(out_dir / "per_sample.csv", index=False)
-    meta = {"temperature": temperature, "n_test": n_samples(cells), "checkpoint": str(Path(cfg["paths"]["checkpoints"]) / "final.pt")}
+    meta = {"temperature": temperature, "n_test": n_samples(cells), "checkpoint": str(final_checkpoint(cfg))}
     json.dump(meta, open(out_dir / "meta.json", "w"), indent=2)
     log.info("eval-synth done: %d rows -> %s", len(df), out_dir)
     return meta

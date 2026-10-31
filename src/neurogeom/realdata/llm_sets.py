@@ -25,7 +25,7 @@ import numpy as np
 import torch
 
 from neurogeom.logging_utils import get_logger
-from neurogeom.realdata.common import hf_env, last_token_acts, load_truncated, log_prompts, save_cloud, token_acts
+from neurogeom.realdata.common import free_cuda, hf_env, last_token_acts, load_truncated, log_prompts, save_cloud, token_acts
 
 log = get_logger(__name__)
 LLAMA = "meta-llama/Llama-3.1-8B"
@@ -91,7 +91,10 @@ def counting_acts(model, tok, texts: list[str], layer: int, width: int = 150) ->
         if sums is None:
             sums = np.zeros((width + 1, hs.shape[1]))
         for i, (s, e) in enumerate(offs.tolist()):
-            if e == 0 or "\n" in t[s:e]:
+            # position 0 is BOS (Llama) or, for tokenizers without BOS (Pythia), the document's first token: an attention
+            # sink with massive activations (Sun et al. 2024, arXiv:2402.17762; Xiao et al. 2023, arXiv:2309.17453) that
+            # would dominate the mean of whatever count bin it falls in (observed: Pythia's count-1 mean at 50x the median)
+            if i == 0 or e == 0 or "\n" in t[s:e]:
                 continue
             c = e - (t.rfind("\n", 0, e) + 1)                     # characters since last newline, incl. this token
             if 1 <= c <= width:
@@ -127,7 +130,7 @@ def llama_layer5(cfg: dict, random_init: bool = False) -> None:
             means = np.stack([x[[t == v for t in targets]].mean(0) for v in u])
             save_cloud(cfg, did + "_means", means, u, {**meta, "source": meta["source"] + " (mean per class)"})
     del model
-    torch.cuda.empty_cache()
+    free_cuda()
 
 
 def llama_layer19(cfg: dict) -> None:
@@ -144,7 +147,7 @@ def llama_layer19(cfg: dict) -> None:
                                          "source": "Bhalla et al. 2026 Table 1 template", "expected_coarse": coarse,
                                          "expected_fine": fine, "prereg": pre})
     del model
-    torch.cuda.empty_cache()
+    free_cuda()
 
 
 def llama_layer12_truth(cfg: dict) -> None:
@@ -157,7 +160,7 @@ def llama_layer12_truth(cfg: dict) -> None:
                                                         "source": "geometry-of-truth cities.csv (Marks & Tegmark 2024)",
                                                         "expected_coarse": "0d", "expected_fine": ["clusters"], "prereg": True})
     del model
-    torch.cuda.empty_cache()
+    free_cuda()
 
 
 def pythia_counting(cfg: dict) -> None:
@@ -169,4 +172,4 @@ def pythia_counting(cfg: dict) -> None:
                                                    "source": "mean hidden state per char count since newline, pile-10k wrapped at 150",
                                                    "expected_coarse": "1d", "expected_fine": ["helix"], "prereg": False})
     del model
-    torch.cuda.empty_cache()
+    free_cuda()

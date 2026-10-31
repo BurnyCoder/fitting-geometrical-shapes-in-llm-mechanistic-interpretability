@@ -23,9 +23,9 @@ from neurogeom.logging_utils import get_logger  # noqa: E402
 log = get_logger(__name__)
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-SYSTEM_ORDER = ["method", "A3_norefine", "A5_gaic", "A5_hybrid", "A0_reference", "A1_paramloss", "A2_noresidual", "A4_deepsets", "A6_noembed",
+SYSTEM_ORDER = ["method", "method_subset", "A3_norefine", "A5_gaic", "A5_hybrid", "A0_reference", "A1_paramloss", "A2_noresidual", "A4_deepsets", "A6_noembed",
                 "B1_classical", "B2_features", "B3a_null", "B3b_circle", "B3c_random"]
-SYSTEM_LABEL = {"method": "Method (network + refinement)", "A3_norefine": "A3: no refinement", "A5_gaic": "A5: G-AIC selection",
+SYSTEM_LABEL = {"method": "Method (network + refinement)", "method_subset": "Method, baseline subset", "A3_norefine": "A3: no refinement", "A5_gaic": "A5: G-AIC selection",
                 "A5_hybrid": "A5: hybrid selection", "A0_reference": "A0: method, ablation budget", "A1_paramloss": "A1: parameter-space loss", "A2_noresidual": "A2: no residual term",
                 "A4_deepsets": "A4: DeepSets encoder", "A6_noembed": "A6: no R^D augmentation", "B1_classical": "B1: classical fit + G-AIC",
                 "B2_features": "B2: features + boosting", "B3a_null": "B3a: always blob", "B3b_circle": "B3b: always circle",
@@ -85,12 +85,14 @@ def fig_systems(analysis: dict, key: str = "systems", name: str = "fig_systems.p
 
 def fig_by_bin(analysis: dict, key: str, xlabels: list[str], title: str, name: str) -> Path:
     data = analysis[key]
-    systems = [k for k in ("method", "A3_norefine", "B1_classical", "B2_features") if k in data]
+    # paired: every line uses the same baseline-subset clouds. A3 (no refinement) is left out: refinement never changes the
+    # selected family, so its accuracy equals the method's by construction and its line would hide the method's.
+    systems = [k for k in ("method_subset", "B1_classical", "B2_features") if k in data]
     fig, ax = plt.subplots(figsize=(6.5, 3.6))
     for k in systems:
         xs = sorted(int(b) for b in data[k])
         ys = [data[k][str(b)]["fine_acc"] if str(b) in data[k] else data[k][b]["fine_acc"] for b in xs]
-        ax.plot(xs, ys, "-o", color=_color(k) if k != "A3_norefine" else PALETTE[6], linewidth=2, markersize=7,
+        ax.plot(xs, ys, "-o", color=_color("method" if k == "method_subset" else k), linewidth=2, markersize=7,
                 markeredgecolor="white", label=SYSTEM_LABEL[k])
     ax.set_xticks(range(len(xlabels)))
     ax.set_xticklabels(xlabels)
@@ -206,7 +208,7 @@ def fig_real(results_path: Path, viz_dir: Path, ids: list[str], name: str = "fig
     return p
 
 
-def fig_reliability(probs_path: Path, name: str = "fig_reliability.png", bins: int = 15) -> Path:
+def fig_reliability(probs_path: Path, cal: dict | None = None, name: str = "fig_reliability.png", bins: int = 15) -> Path:
     z = np.load(probs_path)
     probs, labels = z["probs"], z["labels"]
     conf, pred = probs.max(1), probs.argmax(1)
@@ -222,7 +224,10 @@ def fig_reliability(probs_path: Path, name: str = "fig_reliability.png", bins: i
     ax.set_xlim(0, 1), ax.set_ylim(0, 1)
     ax.set_xlabel("confidence (temperature-scaled)", color=INK2)
     ax.set_ylabel("accuracy", color=INK2)
-    ax.set_title("Reliability diagram, method", fontsize=10, loc="left")
+    title = "Reliability diagram, method"
+    if cal:
+        title += f"\nECE {cal['before']['ece']:.3f} (T = 1) -> {cal['after']['ece']:.3f} (T = {cal['temperature']:.2f})"
+    ax.set_title(title, fontsize=10, loc="left")
     _style(ax)
     fig.tight_layout()
     p = fig_dir() / name

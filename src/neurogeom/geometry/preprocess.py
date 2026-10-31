@@ -71,7 +71,13 @@ def normalize_batch(x: torch.Tensor, mask: torch.Tensor | None = None) -> tuple[
         # Small matrices (D <= 16) are faster on the CPU than through cuSOLVER's batched eigh.
         small = d <= 16
         work = cov.detach().cpu().double() if (cov.device.type == "cpu" or small) else cov
-        evals, evecs = torch.linalg.eigh(work)                             # ascending eigenvalues
+        try:
+            evals, evecs = torch.linalg.eigh(work)                         # ascending eigenvalues
+        except torch.linalg.LinAlgError:
+            # cuSOLVER's Jacobi eigh can fail to converge on rank-deficient covariances with many repeated
+            # (zero) eigenvalues, e.g. a noise-free shape embedded in R^256 (crashed run main_s0 at step 19000).
+            # LAPACK in float64 on the CPU is robust to this.
+            evals, evecs = torch.linalg.eigh(cov.detach().cpu().double())
         evals, evecs = evals.flip(-1).to(x.device, x.dtype), evecs.flip(-1).to(x.device, x.dtype)
     else:  # large D: SVD of the centred data is cheaper than eigh of a D x D covariance
         _, s, vh = torch.linalg.svd(xc, full_matrices=False)

@@ -1,0 +1,45 @@
+id,N,D,family,coarse,expected_coarse,expected_fine,prereg,p_selected,top3_explained,gap_flag,ood,stability_majority,stability_coarse_majority
+C1_gp_0,200,768,helix,1d,1d,['ringing'],True,0.7180445194244385,0.9866733369324254,False,False,ringing,1d
+C1_gp_1,200,768,ringing,1d,1d,['ringing'],True,0.5085795521736145,0.8811918553201464,False,False,,
+C1_gp_2,200,768,helix,1d,1d,['ringing'],True,0.9329036474227905,0.9209001281521529,False,False,,
+C1_gp_3,200,768,helix,1d,1d,['ringing'],True,0.9748823046684265,0.8407886693565665,False,False,,
+C1_gp_4,200,768,ringing,1d,1d,['ringing'],True,0.4625256657600403,0.9865024010799845,False,False,,
+C1_gp_5,200,768,helix,1d,1d,['ringing'],True,0.9249362945556641,0.7094569864040403,True,False,,
+C1_gp_6,200,768,helix,1d,1d,['ringing'],True,0.9059233069419861,0.8694333932873625,False,False,,
+C1_gp_7,200,768,helix,1d,1d,['ringing'],True,0.9528169631958008,0.9231091342463722,False,False,,
+C1_gp_8,200,768,helix,1d,1d,['ringing'],True,0.7892192006111145,0.9808649671237085,False,False,,
+C1_gp_9,200,768,helix,1d,1d,['ringing'],True,0.7127212882041931,0.9743758914672018,False,False,,
+C1_walk_0,200,768,ringing,1d,1d,['ringing'],True,0.9912062287330627,0.834722595214288,False,False,ringing,1d
+C1_walk_1,200,768,ringing,1d,1d,['ringing'],True,0.9928299784660339,0.8145786298726713,False,False,,
+C1_walk_2,200,768,ringing,1d,1d,['ringing'],True,0.9913570880889893,0.8374583951938898,False,False,,
+C1_walk_3,200,768,ringing,1d,1d,['ringing'],True,0.991419792175293,0.8301262710954559,False,False,,
+C1_walk_4,200,768,ringing,1d,1d,['ringing'],True,0.9784343838691711,0.8221096269160395,False,False,,
+C1_walk_5,200,768,ringing,1d,1d,['ringing'],True,0.9892862439155579,0.8305505371700587,False,False,,
+C1_walk_6,200,768,ringing,1d,1d,['ringing'],True,0.9944522976875305,0.8362239927217828,False,False,,
+C1_walk_7,200,768,ringing,1d,1d,['ringing'],True,0.9895825386047363,0.8207579663084299,False,False,,
+C1_walk_8,200,768,ringing,1d,1d,['ringing'],True,0.9849587678909302,0.8251419492752774,False,False,,
+C1_walk_9,200,768,ringing,1d,1d,['ringing'],True,0.9889423847198486,0.826588196637578,False,False,,
+C3_gpt2_wpos_init,1023,768,blob,3d,3d,['blob'],True,0.9283632636070251,0.013372637880969278,True,False,blob,3d
+C3_grokking_WE_init,113,128,blob,3d,3d,['blob'],True,0.9464980959892273,0.09466089750573377,True,False,blob,3d
+C3_grokking_WE_memorised,113,128,blob,3d,,,False,0.9739735126495361,0.1540958157980705,True,False,blob,3d
+C3_llama_counting_init,150,4096,clusters,0d,3d,['blob'],True,0.9588706493377686,0.13831628090831558,True,True,clusters,0d
+C3_llama_months_init,144,4096,clusters,0d,3d,['blob'],True,0.9265536069869995,0.18509810528357873,True,True,clusters,0d
+C3_llama_weekdays_init,49,4096,polytope,0d,3d,['blob'],True,0.7223232984542847,0.342068973214059,True,True,clusters,0d
+C3_tms_dense,5,3,polytope,0d,,,False,0.5669721961021423,0.9999999999999999,False,False,polytope,0d
+R1_gpt2_wpos,1023,768,sphere,2d,1d,['helix'],True,0.6521146297454834,0.910581270095538,False,False,sphere,2d
+R2_grokking_WE,113,128,helix,1d,1d,"['arc', 'ellipse']",True,0.5111538171768188,0.3244068050205965,True,False,helix,1d
+R3_tms_n20,20,3,sphere,2d,0d,"['polytope', 'clusters']",False,0.8412327170372009,1.0,False,False,sphere,2d
+R3_tms_n6,6,3,polytope,0d,0d,"['polytope', 'clusters']",True,0.998472273349762,0.9999999999999999,False,False,polytope,0d
+R3_tms_n8,8,3,polytope,0d,0d,"['polytope', 'clusters']",True,0.9959244728088379,1.0,False,False,sphere,2d
+R4_llama_counting,150,4096,ringing,1d,1d,['helix'],True,0.7350236177444458,0.6908622505825455,False,False,ringing,1d
+R4b_pythia_counting,150,1024,ringing,1d,1d,['helix'],False,0.8620203733444214,0.7491623311135689,False,False,ringing,1d
+R5a_llama_weekdays,49,4096,helix,1d,1d,['arc'],True,0.8270775079727173,0.6587066978924345,True,False,helix,1d
+R5a_llama_weekdays_means,7,4096,sphere,2d,1d,['arc'],True,0.39966869354248047,0.7813171642421459,True,False,helix,1d
+R5b_llama_months,144,4096,helix,1d,1d,['arc'],True,0.703027606010437,0.5488783346494348,True,False,helix,1d
+R5b_llama_months_means,12,4096,helix,1d,1d,['arc'],True,0.40353456139564514,0.5997272931541041,True,False,helix,1d
+R5c_llama_days_time,336,4096,ringing,1d,1d,['arc'],False,0.8299200534820557,0.5796628332511563,True,False,ringing,1d
+R6_llama_years,199,4096,cone,2d,1d,['helix'],True,0.33779674768447876,0.2466855476162086,True,False,paraboloid,2d
+R7_llama_colors,900,4096,cone,2d,2d,['paraboloid'],True,0.7855064272880554,0.659333770934792,True,False,cone,2d
+R8a_llama_temperature,150,4096,ringing,1d,1d,['line'],True,0.9781960248947144,0.8964421982830391,False,False,ringing,1d
+R8b_llama_age,99,4096,clusters,0d,1d,['line'],True,0.6138323545455933,0.8540657866745953,False,True,clusters,0d
+R9_llama_truth_cities,1496,4096,ringing,1d,0d,['clusters'],True,0.82481849193573,0.5271425067173168,False,True,ringing,1d

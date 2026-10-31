@@ -77,9 +77,9 @@ def phase_gallery(cfg):
     import json
     import torch
     from neurogeom.eval.gallery import build_gallery
-    from neurogeom.train.loop import load_model
+    from neurogeom.train.loop import final_checkpoint, load_model
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model, _ = load_model(Path(cfg["paths"]["checkpoints"]) / "final.pt", dev)
+    model, _ = load_model(final_checkpoint(cfg), dev)
     t = json.load(open(Path(cfg["paths"]["results"]) / "synth" / "meta.json"))["temperature"]
     build_gallery(model, cfg, t, dev, Path(cfg["paths"]["results"]) / "gallery.json")
 
@@ -93,7 +93,7 @@ def phase_publish(cfg):
     import os
     from neurogeom.report.publish import add_to_collection, upload_run
     repo = f"{os.environ.get('NEUROGEOM_HF_REPO', 'BurnyCoder/neurogeom-shape-fitter')}-{cfg['run_name'].replace('_', '-')}"
-    upload_run(cfg, repo, Path(cfg["paths"]["results"]) / "analysis.json")
+    upload_run(cfg, repo)
     add_to_collection([repo])
 
 
@@ -117,8 +117,18 @@ def main(argv=None):
     ap.add_argument("--config", default=None, help="YAML file in configs/ (merged over configs/base.yaml)")
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--run-name", default=None)
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                    help="override a config value, e.g. --set eval.baselines=false (YAML-parsed value)")
     args = ap.parse_args(argv)
     overrides = {}
+    import yaml
+    for kv in args.set:
+        key, val = kv.split("=", 1)
+        node = overrides
+        *parents, leaf = key.split(".")
+        for k in parents:
+            node = node.setdefault(k, {})
+        node[leaf] = yaml.safe_load(val)
     if args.seed is not None:
         overrides["seed"] = args.seed
     if args.run_name:

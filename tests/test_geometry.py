@@ -72,6 +72,22 @@ def test_residual_masks_input_padding():
     assert nearest_dist(x, s).shape == (1, 3)
 
 
+def test_nearest_dist_matches_full_matrix_min_in_value_and_gradient(monkeypatch):
+    """The gather-at-argmin implementation equals min over the full distance matrix (value and gradient),
+    also when the chunking splits the batch and when q has padding columns."""
+    import neurogeom.geometry.chamfer as ch
+    g = torch.Generator().manual_seed(0)
+    p = torch.randn(5, 40, 3, generator=g, dtype=torch.float64, requires_grad=True)
+    q = torch.randn(5, 30, 3, generator=g, dtype=torch.float64, requires_grad=True)
+    valid = torch.rand(5, 30, generator=g) > 0.3
+    ref = ch.pairwise_dist(p, q).masked_fill(~valid.unsqueeze(-2), ch._BIG).min(-1).values
+    gp_ref, gq_ref = torch.autograd.grad(ref.sum(), (p, q))
+    monkeypatch.setattr(ch, "_CHUNK", 40 * 30 * 2)   # two clouds per chunk -> three chunks
+    d = nearest_dist(p, q, valid)
+    gp, gq = torch.autograd.grad(d.sum(), (p, q))
+    assert torch.allclose(d, ref) and torch.allclose(gp, gp_ref) and torch.allclose(gq, gq_ref)
+
+
 # ------------------------------------------------------------------ preprocessing
 def _cloud(n=200, seed=0):
     rng = np.random.default_rng(seed)

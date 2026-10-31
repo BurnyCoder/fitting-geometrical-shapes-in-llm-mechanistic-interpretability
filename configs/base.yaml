@@ -1,7 +1,8 @@
 # Default configuration. Other configs (smoke.yaml, main.yaml, ablation_*.yaml) override a subset.
 # Every hyperparameter choice is justified in reports/preregistration.md and docs/methodology.md.
 
-seed: 0
+seed: 0          # model/training seed
+data_seed: 0     # seed of the fixed validation/test sets (shared by every run for paired comparisons)
 device: cuda
 
 # ---------------------------------------------------------------- synthetic data generator
@@ -61,7 +62,8 @@ train:
   log_every: 200
   val_every: 5000
   val_size: 2048
-  ckpt_every: 10000
+  ckpt_every: 2000      # full training state (model + optimiser + curve) for exact resume
+  resume: null          # path to a checkpoint to resume from
   max_minutes: 110     # wall-clock cap for one seed (8 GB laptop GPU budget)
 
 # ---------------------------------------------------------------- inference
@@ -76,6 +78,8 @@ infer:
 # ---------------------------------------------------------------- evaluation
 eval:
   test_per_cell: 250          # samples per (family, N-bin, noise-bin) cell
+  real_only: null             # list of real dataset ids to re-evaluate (the stored results of the others are kept)
+  checkpoint: null            # evaluate this checkpoint instead of the run's own final.pt (inference-only sensitivity)
   n_bins: [[5, 12], [13, 64], [65, 256], [257, 1024]]
   noise_bins: [[0.003, 0.02], [0.02, 0.06], [0.06, 0.15]]
   bootstrap_reps: 2000
@@ -86,3 +90,9 @@ eval:
   baseline_per_cell: 20       # baselines run on the first 20 samples per family of every cell (3120 samples)
   val_per_cell: 10            # temperature-calibration set from the `val` stream
   gbm_per_family: 1500        # B2 training clouds per family
+  baselines: true             # run B1-B3 (only needed once per test set)
+  variants: true              # A3 (no refinement) and A5 (selection rules) from the same network
+  method_subset_per_cell: null  # null = full test set; seeds/ablations use a fixed per-family subset
+
+report:
+  reuse_analysis: false       # true: rebuild tables/figures/macros from results/<run>/analysis.json without re-running the bootstraps

@@ -1,0 +1,8 @@
+{
+  "steps_done": 22643,
+  "minutes": 110.00926675399144,
+  "n_params": 1712093,
+  "resumed_from_step": 10000,
+  "val_acc": 0.90185546875,
+  "val_cd_teacher": 0.2106669193599373
+}

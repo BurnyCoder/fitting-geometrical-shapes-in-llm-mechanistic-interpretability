@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from neurogeom.eval.stats import (binom_ci, bootstrap_ci, bootstrap_ci_pairs, holm, macro_f1, paired_bootstrap,
+from neurogeom.eval.stats import (binom_ci, bootstrap_ci, bootstrap_ci_pairs, ece, holm, macro_f1, paired_bootstrap,
                                   paired_bootstrap_f1, wilcoxon_p)
 from neurogeom.logging_utils import get_logger
 
@@ -71,7 +71,7 @@ def _f1_pvalue(lo: float, hi: float, est: float) -> float:
     """Two-sided bootstrap p-value approximation from the CI (normal approximation of the bootstrap SE)."""
     from scipy.stats import norm
     se = max((hi - lo) / (2 * 1.96), 1e-12)
-    return float(2 * (1 - norm.cdf(abs(est) / se)))
+    return float(2 * norm.sf(abs(est) / se))   # survival function: no 1 - cdf cancellation in the tail
 
 
 def hypotheses_synth(df: pd.DataFrame, reps: int, ablation_frames: dict) -> dict:
@@ -102,6 +102,23 @@ def hypotheses_synth(df: pd.DataFrame, reps: int, ablation_frames: dict) -> dict
     return h
 
 
+def calibration(res_dir: Path) -> dict | None:
+    """ECE (15 bins) and NLL of the classifier on the synthetic test set before (T = 1) and after temperature scaling
+    (preregistration Sec. 5.4). probs.npz holds p = softmax(l / T), so l = T log p up to a per-sample constant."""
+    pz, mz = res_dir / "synth" / "probs.npz", res_dir / "synth" / "meta.json"
+    if not (pz.exists() and mz.exists()):
+        return None
+    z, t = np.load(pz), json.load(open(mz))["temperature"]
+    logits, y = t * np.log(np.clip(z["probs"], 1e-12, 1.0)), z["labels"]
+
+    def scored(temp):
+        lg = logits / temp
+        q = np.exp(lg - lg.max(1, keepdims=True))
+        q /= q.sum(1, keepdims=True)
+        return {"ece": ece(q, y), "nll": float(-np.log(q[np.arange(len(y)), y] + 1e-12).mean())}
+    return {"temperature": t, "n": int(len(y)), "before": scored(1.0), "after": scored(t)}
+
+
 def hypotheses_real(results: list[dict], seed: int = 0) -> dict:
     pre = [r for r in results if r["id"].startswith("R") and r["meta"].get("prereg") and r["meta"].get("expected_coarse")
            and not r["id"].endswith("_means")]
@@ -123,8 +140,11 @@ def hypotheses_real(results: list[dict], seed: int = 0) -> dict:
     ring = float(np.mean([r["family"] == "ringing" for r in c1])) if c1 else None
     helix = float(np.mean([r["family"] == "helix" for r in c1])) if c1 else None
     blob_rate = float(np.mean(c2)) if c2 else None
+    # post-hoc breakdown (not preregistered): smooth Gaussian processes and random walks separately
+    by_proc = {k: {fam: float(np.mean([r["family"] == fam for r in c1 if r["id"].startswith(f"C1_{k}_")]))
+                   for fam in ("helix", "ringing")} for k in ("gp", "walk") if any(r["id"].startswith(f"C1_{k}_") for r in c1)}
     h4 = {"C2_blob_rate_mean": blob_rate, "C2_per_dataset": {r["id"]: r["C2_matched_gaussian"] for r in results if "C2_matched_gaussian" in r},
-          "C1_ringing_rate": ring, "C1_helix_rate": helix, "C1_labels": {r["id"]: r["family"] for r in c1},
+          "C1_ringing_rate": ring, "C1_helix_rate": helix, "C1_labels": {r["id"]: r["family"] for r in c1}, "C1_by_process_posthoc": by_proc,
           "supported": blob_rate is not None and blob_rate >= 0.8 and ring is not None and ring > helix}
     c3 = {r["id"]: r["family"] for r in results if r["id"].startswith("C3_")}
     return {"H3": h3, "H4": h4, "C3_random_init": c3}
@@ -133,22 +153,26 @@ def hypotheses_real(results: list[dict], seed: int = 0) -> dict:
 def run_analysis(cfg: dict, ablation_runs: dict | None = None) -> dict:
     res_dir = Path(cfg["paths"]["results"])
     reps = cfg["eval"]["bootstrap_reps"]
-    df = pd.read_csv(res_dir / "synth" / "per_sample.csv")
+    df = pd.read_csv(res_dir / "synth" / "per_sample.csv", low_memory=False)
+    # the method restricted to the baseline subset, so every row of the main table can be compared on the same clouds
+    base_ids = set(df[df.system == "B1_classical"].sample_id)
+    if base_ids:
+        df = pd.concat([df, df[(df.system == "method") & df.sample_id.isin(base_ids)].assign(system="method_subset")])
     abl = {}
     for name, run in (ablation_runs or {}).items():
         p = res_dir.parent / run / "synth" / "per_sample.csv"
         if p.exists():
-            a = pd.read_csv(p)
+            a = pd.read_csv(p, low_memory=False)
             a = a[a.system == "method"].copy()
             a["system"] = name
             abl[name] = a
     full = pd.concat([df] + list(abl.values()))
     out = {"systems": system_summary(full, reps), "by_n_bin": breakdown(full, "n_bin"), "by_noise_bin": breakdown(full, "noise_bin"),
            "per_family": per_family(full), "confusion_method": confusion(df, "method"),
-           "hypotheses": hypotheses_synth(df, reps, abl)}
+           "hypotheses": hypotheses_synth(df, reps, abl), "calibration": calibration(res_dir)}
     if "ambiguous" in df:
         ids = set(df[(df.system == "B1_classical") & (df.ambiguous == True)].sample_id)  # noqa: E712
-        sub = df[~df.sample_id.isin(ids) & df.sample_id.isin(set(df[df.system == "B1_classical"].sample_id))]
+        sub = df[(df.system != "method_subset") & ~df.sample_id.isin(ids) & df.sample_id.isin(base_ids)]
         out["systems_unambiguous_subset"] = system_summary(sub, min(reps, 500))
         out["ambiguous_fraction"] = float(len(ids) / max(1, (df.system == "B1_classical").sum()))
     rp = res_dir / "real" / "real_results.json"

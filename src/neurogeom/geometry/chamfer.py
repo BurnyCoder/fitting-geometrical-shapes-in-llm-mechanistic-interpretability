@@ -16,6 +16,7 @@ import torch
 
 _EPS = 1e-8   # keeps sqrt differentiable when two points coincide (d = 0)
 _BIG = 1e6    # distance assigned to masked-out (padding) points so they never win a min
+_CHUNK = 1 << 26   # max distances per transient block in nearest_index (256 MB in float32)
 
 
 def pairwise_dist(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
@@ -25,12 +26,40 @@ def pairwise_dist(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
     return torch.sqrt(d2.clamp_min(0.0) + _EPS)
 
 
+@torch.no_grad()
+def nearest_index(p: torch.Tensor, q: torch.Tensor, q_valid: torch.Tensor | None = None) -> torch.Tensor:
+    """(B, M) index of the nearest valid point of q for each point of p.
+
+    Computed without autograd and in batch chunks of at most _CHUNK distances, so the (B, M, K) matrix
+    is never stored for the backward pass (the same split as pytorch3d's knn_points + knn_gather,
+    https://pytorch3d.readthedocs.io/en/latest/modules/ops.html#pytorch3d.ops.knn_points).
+    """
+    step = max(1, _CHUNK // max(1, p.shape[1] * q.shape[1]))
+    out = []
+    for s in range(0, p.shape[0], step):
+        pp, qq = p[s:s + step], q[s:s + step]
+        # squared distances in one fused kernel, |p|^2 + |q|^2 - 2 p.q (argmin of d^2 = argmin of d, no sqrt needed)
+        d2 = torch.baddbmm((pp * pp).sum(-1, keepdim=True) + (qq * qq).sum(-1).unsqueeze(-2), pp, qq.transpose(-1, -2), alpha=-2.0)
+        if q_valid is not None:
+            d2.masked_fill_(~q_valid[s:s + step].unsqueeze(-2), _BIG)   # padding columns can never be nearest
+        out.append(d2.argmin(-1))
+    return torch.cat(out)
+
+
 def nearest_dist(p: torch.Tensor, q: torch.Tensor, q_valid: torch.Tensor | None = None) -> torch.Tensor:
-    """For each point of p, the distance to the nearest *valid* point of q. Returns (B, M)."""
-    d = pairwise_dist(p, q)
-    if q_valid is not None:
-        d = d.masked_fill(~q_valid.unsqueeze(-2), _BIG)   # padding columns can never be nearest
-    return d.min(dim=-1).values
+    """For each point of p, the distance to the nearest *valid* point of q. Returns (B, M).
+
+    The gradient of min_j d_ij is the gradient of d_ij at the minimiser, so differentiating only the
+    gathered nearest pair gives the same value and gradient as a min over the full matrix (up to ties)
+    with O(B M) instead of O(B M K) autograd memory. Test-time refinement of 3 candidate surfaces for
+    512 clouds of 256 points against 1600 shape samples needed > 8 GB the old way.
+    """
+    idx = nearest_index(p, q, q_valid)
+    qn = torch.gather(q, 1, idx.unsqueeze(-1).expand(-1, -1, q.shape[-1]))    # (B, M, 3) nearest q per p
+    d = torch.sqrt(((p - qn) ** 2).sum(-1) + _EPS)
+    if q_valid is not None:   # a sample whose q has no valid point at all keeps the old _BIG sentinel
+        d = torch.where(q_valid.any(-1, keepdim=True), d, torch.full_like(d, _BIG))
+    return d
 
 
 def _normalise(w: torch.Tensor) -> torch.Tensor:
