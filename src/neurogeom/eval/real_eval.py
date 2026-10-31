@@ -56,23 +56,24 @@ def heldout_residuals(model, y: np.ndarray, cfg: dict, temperature: float, devic
     rng = np.random.default_rng(seed)
     idx = rng.permutation(len(y))
     parts = np.array_split(idx, folds)
+    splits = [(np.concatenate([parts[j] for j in range(folds) if j != k]), parts[k]) for k in range(folds)]
+    splits = [(tr, te) for tr, te in splits if len(tr) >= 4 and len(te) > 0]
     res = {"method": [], "B1_classical": [], "helix": [], "ringing": []}
-    for k in range(folds):
-        test = parts[k]
-        train = np.concatenate([parts[j] for j in range(folds) if j != k])
-        if len(train) < 4 or len(test) == 0:
-            continue
-        x, m = _pad_batch([y[train]], device)
-        fit = fit_batch(model, x, m, cfg["infer"], temperature)[0]
-        res["method"].append(_heldout_dist(fit.family, fit.raw, y[test], device))
-        forced = fit_batch(model, x, m, cfg["infer"], temperature, families=[INDEX["helix"], INDEX["ringing"]])[0]
-        for name, (fi, _, _), raw in zip(("helix", "ringing"), forced.cand, forced.cand_raws):
-            res[name].append(_heldout_dist(fi, raw, y[test], device))
-        with torch.enable_grad():
-            cands, sel = fit_classical(x, m, cfg["eval"]["classical_steps"], cfg["infer"]["refine_back_weight"],
-                                       restarts=cfg["eval"]["classical_restarts"])
-        c = cands[int(sel["cand_index"][0])]
-        res["B1_classical"].append(_heldout_dist(c["fi"], c["raw"][0], y[test], device))
+    if not splits:
+        return {k: float("nan") for k in res}
+    # all folds are fitted in one padded batch (fitting is launch-bound, so a batch of 5 costs ~ one fit)
+    x, m = _pad_batch([y[tr] for tr, _ in splits], device)
+    fits = fit_batch(model, x, m, cfg["infer"], temperature)
+    forced = fit_batch(model, x, m, cfg["infer"], temperature, families=[INDEX["helix"], INDEX["ringing"]])
+    with torch.enable_grad():
+        cands, sel = fit_classical(x, m, cfg["eval"]["classical_steps"], cfg["infer"]["refine_back_weight"],
+                                   restarts=cfg["eval"]["classical_restarts"])
+    for k, (_, te) in enumerate(splits):
+        res["method"].append(_heldout_dist(fits[k].family, fits[k].raw, y[te], device))
+        for name, (fi, _, _), raw in zip(("helix", "ringing"), forced[k].cand, forced[k].cand_raws):
+            res[name].append(_heldout_dist(fi, raw, y[te], device))
+        c = cands[int(sel["cand_index"][k])]
+        res["B1_classical"].append(_heldout_dist(c["fi"], c["raw"][k], y[te], device))
     return {k: float(np.mean(v)) if v else float("nan") for k, v in res.items()}
 
 
@@ -82,8 +83,8 @@ def subsample_labels(model, x_raw: np.ndarray, cfg: dict, temperature: float, de
     k = max(5, int(round(frac * n)))
     clouds = [fit_frame(x_raw[rng.choice(n, k, replace=False)])[0] for _ in range(reps)]
     fams = []
-    for s in range(0, reps, 50):
-        x, m = _pad_batch(clouds[s:s + 50], device)
+    for s in range(0, reps, 100):
+        x, m = _pad_batch(clouds[s:s + 100], device)
         fams += [f.family for f in fit_batch(model, x, m, cfg["infer"], temperature)]
     fine = pd.Series([NAMES[f] for f in fams]).value_counts(normalize=True).to_dict()
     coarse = pd.Series([COARSE_NAMES[COARSE[f]] for f in fams]).value_counts(normalize=True).to_dict()
@@ -133,11 +134,9 @@ def eval_dataset(model, path: Path, cfg: dict, temperature: float, device, thres
         out["stability"] = subsample_labels(model, x_raw, cfg, temperature, device, ec["real_subsample_reps"], ec["real_subsample_frac"])
         out["heldout"] = heldout_residuals(model, y, cfg, temperature, device)
         rng = np.random.default_rng(0)
-        c2 = []
-        for _ in range(ec.get("matched_gaussian_reps", 20)):
-            yg, _ = fit_frame(matched_gaussian(x_raw, rng))
-            xg, mg = _pad_batch([yg], device)
-            c2.append(NAMES[fit_batch(model, xg, mg, cfg["infer"], temperature)[0].family])
+        gs = [fit_frame(matched_gaussian(x_raw, rng))[0] for _ in range(ec.get("matched_gaussian_reps", 20))]
+        xg, mg = _pad_batch(gs, device)
+        c2 = [NAMES[f.family] for f in fit_batch(model, xg, mg, cfg["infer"], temperature)]
         out["C2_matched_gaussian"] = pd.Series(c2).value_counts(normalize=True).to_dict()
         # preregistered rule: a helix claim needs p(helix)/p(ringing) >= 3 AND a lower held-out residual than ringing
         helix_pref = bool(out["p_helix_over_ringing"] >= 3 and out["heldout"]["helix"] < out["heldout"]["ringing"])
