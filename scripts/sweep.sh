@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Staged follow-up experiments after main_s0 is published. Each stage is run, then published (paper, results,
-# README, models on Hugging Face) before the next one starts:
-#   bash scripts/sweep.sh ablations     # stage 5: A0 reference + A1/A2/A4/A6, shared short budget (12k steps / 60 min)
-#   bash scripts/sweep.sh sensitivity   # stage 6: seeds 1-2 of the main config; learning rate x3 and /3 at the
-#                                       #          ablation budget; inference hyperparameters re-evaluated on main_s0
+# Staged follow-up experiments after main_s0 (and any extra models, controls or baselines) is published. Each stage
+# is run, then published (paper, results, reports, README, website, models on Hugging Face) before the next starts:
+#   bash scripts/sweep.sh ablations     # A0 reference + A1/A2/A4/A6, shared short budget (12k steps / 60 min)
+#   bash scripts/sweep.sh sensitivity   # seeds 1-2 of the main config; learning rate x3 and /3 at the ablation
+#                                       # budget; inference hyperparameters re-evaluated on main_s0's weights
 # Every run evaluates the method on the same fixed per-family test subset (the evaluation data seed is fixed),
 # so all runs are paired with each other and with main_s0.
 set -euo pipefail
