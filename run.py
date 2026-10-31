@@ -93,7 +93,7 @@ def phase_publish(cfg):
     import os
     from neurogeom.report.publish import add_to_collection, upload_run
     repo = f"{os.environ.get('NEUROGEOM_HF_REPO', 'BurnyCoder/neurogeom-shape-fitter')}-{cfg['run_name'].replace('_', '-')}"
-    upload_run(cfg, repo, Path(cfg["paths"]["results"]) / "analysis.json")
+    upload_run(cfg, repo)
     add_to_collection([repo])
 
 

@@ -91,7 +91,10 @@ def counting_acts(model, tok, texts: list[str], layer: int, width: int = 150) ->
         if sums is None:
             sums = np.zeros((width + 1, hs.shape[1]))
         for i, (s, e) in enumerate(offs.tolist()):
-            if e == 0 or "\n" in t[s:e]:
+            # position 0 is BOS (Llama) or, for tokenizers without BOS (Pythia), the document's first token: an attention
+            # sink with massive activations (Sun et al. 2024, arXiv:2402.17762; Xiao et al. 2023, arXiv:2309.17453) that
+            # would dominate the mean of whatever count bin it falls in (observed: Pythia's count-1 mean at 50x the median)
+            if i == 0 or e == 0 or "\n" in t[s:e]:
                 continue
             c = e - (t.rfind("\n", 0, e) + 1)                     # characters since last newline, incl. this token
             if 1 <= c <= width:

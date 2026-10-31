@@ -47,6 +47,7 @@ aside h3 { font-size:15px; margin:4px 0 8px; }
 .kv div:nth-child(odd) { color:var(--ink2); }
 .bar { display:flex; align-items:center; gap:6px; font-size:12px; margin:2px 0; }
 .bar span.b { display:inline-block; height:8px; background:var(--accent); border-radius:2px; }
+a { color:var(--accent); }
 .ok { color:var(--good); font-weight:600; } .no { color:var(--bad); font-weight:600; }
 pre { white-space:pre-wrap; font-size:11px; background:var(--panel); padding:8px; border-radius:4px; }
 @media (max-width: 900px) { main { grid-template-columns: 1fr; } nav, aside { max-height:none; border:0; } }
@@ -85,7 +86,7 @@ async function load(id, btn) {
     <div>top-3 variance</div><div>${(100*d.top3).toFixed(0)}%</div>
     <div>expected</div><div>${d.expected_coarse || '-'} / ${(d.expected_fine||['-']).join(', ')}</div>
     <div>fit (full cloud)</div><div><b>${d.family}</b></div>
-    <div>subsample majority</div><div>${d.majority || '-'} ${met}</div>
+    ${d.majority ? `<div>subsample majority</div><div>${d.majority} ${met}</div>` : `<div>vs. expectation</div><div>${met || '-'}</div>`}
     <div>flags</div><div>${d.flags || '-'}</div></div>
     <h3 style="margin-top:12px">Class probabilities</h3>${probs.map(([k,v]) => `<div class="bar"><span style="width:80px">${k}</span><span class="b" style="width:${Math.max(1,160*v)}px"></span>${v.toFixed(2)}</div>`).join('')}
     <h3 style="margin-top:12px">Canonical parameters (PCA coordinates)</h3><pre>${JSON.stringify(d.params, (k,v) => typeof v === 'number' ? Number(v.toFixed(4)) : v, 1)}</pre>`;
@@ -127,7 +128,7 @@ def build_site(cfg: dict, synth_gallery: Path | None = None) -> Path:
         json.dump(rec, open(data / f"{r['id']}.json", "w"))
         group = "Real activations" if r["id"].startswith("R") else "Controls"
         exp = ", ".join(r["meta"].get("expected_fine") or [])
-        manifest[group].append({"id": r["id"], "family": st.get("fine_majority", r["family"]), "expected": exp})
+        manifest[group].append({"id": r["id"], "family": r["family"], "expected": exp})   # sidebar: the full-cloud fit
     if synth_gallery and synth_gallery.exists():
         for rec in json.load(open(synth_gallery)):
             json.dump(rec, open(data / f"{rec['id']}.json", "w"))

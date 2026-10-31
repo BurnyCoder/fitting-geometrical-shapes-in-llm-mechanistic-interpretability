@@ -162,8 +162,13 @@ def run_real_eval(cfg: dict, light_controls: bool = True) -> list[dict]:
     thresholds = ood_threshold(cfg)
     out_dir = Path(cfg["paths"]["results"]) / "real"
     (out_dir / "viz").mkdir(parents=True, exist_ok=True)
+    only = cfg["eval"].get("real_only")      # re-evaluate just these dataset ids and keep the stored results of the rest
+    old = {r["id"]: r for r in json.load(open(out_dir / "real_results.json"))} if only and (out_dir / "real_results.json").exists() else {}
     results = []
     for p in sorted(real_dir(cfg).glob("*.npz")):
+        if only and p.stem not in only and p.stem in old:
+            results.append(old[p.stem])
+            continue
         light = light_controls and p.stem.startswith("C1_") and not p.stem.endswith("_0")
         r = eval_dataset(model, p, cfg, temperature, device, thresholds, light=light)
         json.dump(r.pop("viz"), open(out_dir / "viz" / f"{p.stem}.json", "w"))

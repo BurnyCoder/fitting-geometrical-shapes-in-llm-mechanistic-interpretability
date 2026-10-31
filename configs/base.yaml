@@ -78,6 +78,7 @@ infer:
 # ---------------------------------------------------------------- evaluation
 eval:
   test_per_cell: 250          # samples per (family, N-bin, noise-bin) cell
+  real_only: null             # list of real dataset ids to re-evaluate (the stored results of the others are kept)
   checkpoint: null            # evaluate this checkpoint instead of the run's own final.pt (inference-only sensitivity)
   n_bins: [[5, 12], [13, 64], [65, 256], [257, 1024]]
   noise_bins: [[0.003, 0.02], [0.02, 0.06], [0.06, 0.15]]
@@ -92,3 +93,6 @@ eval:
   baselines: true             # run B1-B3 (only needed once per test set)
   variants: true              # A3 (no refinement) and A5 (selection rules) from the same network
   method_subset_per_cell: null  # null = full test set; seeds/ablations use a fixed per-family subset
+
+report:
+  reuse_analysis: false       # true: rebuild tables/figures/macros from results/<run>/analysis.json without re-running the bootstraps

@@ -25,3 +25,5 @@ paper/*.out
 paper/*.bbl
 paper/*.blg
 .pytest_cache/
+.claude/
+!results/**/probs.npz

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from neurogeom.config import load_env
+from neurogeom.config import REPO_ROOT, load_env
 from neurogeom.logging_utils import get_logger
 
 log = get_logger(__name__)
@@ -19,13 +19,11 @@ COLLECTION_TITLE = "Fitting geometric shapes to neural geometry"
 GITHUB = "https://github.com/BurnyCoder/geometrical-shape-fitting-in-llm-mechanistic-interpretability"
 
 
-def model_card(run: str, summary: dict, analysis: dict | None) -> str:
-    acc = ""
-    if analysis and "method" in analysis.get("systems", {}):
-        m = analysis["systems"]["method"]
-        acc = (f"\n## Synthetic test results (method)\n\n- fine family accuracy: {100 * m['fine_acc'][0]:.1f}% "
-               f"(95% CI {100 * m['fine_acc'][1]:.1f}-{100 * m['fine_acc'][2]:.1f}), n = {m['n']}\n"
-               f"- median Chamfer distance to ground-truth shape: {m['median_chamfer'][0]:.3f} (RMS-radius units)\n")
+PAGES = "https://burnycoder.github.io/geometrical-shape-fitting-in-llm-mechanistic-interpretability/"
+
+
+def model_card(run: str, summary: dict, headline: str, temperature: float) -> str:
+    """Model card: what the model does, the generated headline results (positive and negative), usage, links."""
     return f"""---
 license: mit
 tags: [interpretability, neural-geometry, point-cloud, shape-fitting, set-transformer]
@@ -34,39 +32,55 @@ tags: [interpretability, neural-geometry, point-cloud, shape-fitting, set-transf
 
 This is a Set Transformer trained **only on synthetic shapes**. Its input is a 3D point cloud: the top-3 PCA coordinates of a set of activations. It outputs one of 13 shape families and parameters that specify the shape uniquely. The 13 families are blob, clusters, polytope, line, arc/circle, ellipse, helix, PCA-ringing curve, disc, sphere, paraboloid, cone/frustum and torus.
 
-- Code, paper and reports: {GITHUB}
-- Training summary: {json.dumps(summary)}
-{acc}
+- Code, preregistration and reports: {GITHUB}
+- Paper: `paper.pdf` in this repository
+- Interactive explorer of real and synthetic fits: {PAGES}
+
+## Results (generated from the results files)
+
+{headline}
+
+Results describe the shape of the top-3 PCA projection, not the intrinsic manifold. See the paper for the failure analysis on real activations.
+
+## Training summary
+
+`{json.dumps(summary)}`
+
 ## Usage
 
 ```python
 from neurogeom.train.loop import load_model
 from neurogeom.infer.predict import fit_cloud, describe_fit
 model, cfg = load_model("final.pt")
-fit, frame, _ = fit_cloud(model, activations, cfg["infer"])   # activations: (N, D) numpy array
+fit, frame, _ = fit_cloud(model, activations, cfg["infer"], temperature={temperature:.4f})   # activations: (N, D) numpy array
 print(describe_fit(fit, frame))
 ```
 
-Author: Libor "Burny" Burian. The code was written with Claude Code.
+Author: Libor "Burny" Burian.
 """
 
 
-def upload_run(cfg: dict, repo_id: str, analysis_path: Path | None = None) -> str:
+def upload_run(cfg: dict, repo_id: str) -> str:
     load_env()
     from huggingface_hub import HfApi
     api = HfApi()
     ck = Path(cfg["paths"]["checkpoints"]) / "final.pt"
     res = Path(cfg["paths"]["results"])
     summary = json.load(open(res / "train" / "summary.json"))
-    analysis = json.load(open(analysis_path)) if analysis_path and analysis_path.exists() else None
+    headline = (REPO_ROOT / "reports" / "generated" / "headline.md").read_text(encoding="utf-8").strip()
+    temperature = json.load(open(res / "synth" / "meta.json"))["temperature"]
     api.create_repo(repo_id, exist_ok=True, repo_type="model")
     card = res / "README_hf.md"
-    card.write_text(model_card(cfg["run_name"], summary, analysis), encoding="utf-8")
+    card.write_text(model_card(cfg["run_name"], summary, headline, temperature), encoding="utf-8")
     api.upload_file(path_or_fileobj=str(ck), path_in_repo="final.pt", repo_id=repo_id)
     api.upload_file(path_or_fileobj=str(card), path_in_repo="README.md", repo_id=repo_id)
-    for p in [res / "train" / "summary.json", res / "train" / "curve.json", res / "analysis.json"]:
+    for p in [res / "train" / "summary.json", res / "train" / "curve.json", res / "analysis.json", res / "synth" / "meta.json",
+              res / "real" / "real_summary.csv", res / "real" / "real_results.json"]:
         if p.exists():
             api.upload_file(path_or_fileobj=str(p), path_in_repo=f"results/{p.name}", repo_id=repo_id)
+    pdf = REPO_ROOT / "paper" / "main.pdf"
+    if pdf.exists():
+        api.upload_file(path_or_fileobj=str(pdf), path_in_repo="paper.pdf", repo_id=repo_id)
     log.info("uploaded %s -> https://huggingface.co/%s", cfg["run_name"], repo_id)
     return repo_id
 

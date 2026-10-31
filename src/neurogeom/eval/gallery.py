@@ -56,7 +56,7 @@ def build_gallery(model, cfg: dict, temperature: float, device, out_json: Path) 
         clas = _dense_np(c["fi"], c["raw"][i])
         recs.append({"id": f"synth_{NAMES[fi_true]}", "N": int(m.sum()), "D": 3, "top3": 1.0, "family": NAMES[fit.family],
                      "probs": {NAMES[j]: float(p) for j, p in enumerate(fit.probs)}, "params": describe_fit(fit),
-                     "majority": NAMES[fit.family], "expected_coarse": FAMILIES[fi_true].coarse, "expected_fine": [NAMES[fi_true]],
+                     "majority": None, "expected_coarse": FAMILIES[fi_true].coarse, "expected_fine": [NAMES[fi_true]],
                      "source": f"synthetic test sample (true family: {NAMES[fi_true]}); classical B1 picked {NAMES[c['fi']]}",
                      "flags": "", "cyclic": False, "points": pts.round(5).tolist(), "labels": [str(k) for k in range(int(m.sum()))],
                      "shape": meth.round(5).tolist()})
