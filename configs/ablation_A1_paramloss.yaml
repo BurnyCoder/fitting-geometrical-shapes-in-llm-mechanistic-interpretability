@@ -1,0 +1,9 @@
+# Ablation A1: parameter-space loss instead of shape-to-shape Chamfer (and no point-based residual),
+# i.e. classic parameter regression. Tests preregistered H5a.
+run_name: A1_paramloss_s0
+loss:
+  param_only: true
+  w_residual: 0.0
+train:   # shorter budget shared by all ablations and their matched reference A0
+  steps: 12000
+  max_minutes: 60

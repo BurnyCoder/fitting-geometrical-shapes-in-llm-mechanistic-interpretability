@@ -1,0 +1,140 @@
+"""GitHub Pages explorer (docs/index.html + docs/data/*.json), built only from results files.
+
+Global context: the user asked for an interactive UI to explore positive and negative results. The page
+lists every real dataset, control and a synthetic gallery; for the selected cloud it shows the top-3 PCA
+points (coloured by concept value) and the fitted shape in a rotatable 3D plot (plotly.js), the class
+probabilities, the canonical parameters, the preregistered expectation and whether it was met.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+
+from neurogeom.config import REPO_ROOT
+from neurogeom.logging_utils import get_logger
+
+log = get_logger(__name__)
+DOCS = REPO_ROOT / "docs"
+
+PAGE = r"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural Geometry Shape Fitter</title>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+:root { --surface:#fcfcfb; --panel:#f3f2ef; --ink:#0b0b0b; --ink2:#52514e; --line:#e4e3df; --accent:#2a78d6; --good:#008300; --bad:#e34948; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --surface:#1a1a19; --panel:#242423; --ink:#f0efec; --ink2:#c3c2b7; --line:#3a3a38; --accent:#3987e5; --good:#3fae3f; --bad:#e66767; } }
+:root[data-theme="dark"] { --surface:#1a1a19; --panel:#242423; --ink:#f0efec; --ink2:#c3c2b7; --line:#3a3a38; --accent:#3987e5; --good:#3fae3f; --bad:#e66767; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--surface); color:var(--ink); font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding:16px; border-bottom:1px solid var(--line); }
+header h1 { font-size:18px; margin:0 0 4px; }
+header p { margin:0; color:var(--ink2); max-width:900px; }
+main { display:grid; grid-template-columns: 280px 1fr 340px; gap:0; min-height: calc(100vh - 90px); }
+nav { border-right:1px solid var(--line); overflow:auto; max-height: calc(100vh - 90px); }
+nav h2 { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink2); margin:12px 16px 4px; }
+nav button { display:block; width:100%; text-align:left; padding:6px 16px; border:0; background:none; color:var(--ink); cursor:pointer; font:inherit; }
+nav button:hover, nav button.active { background:var(--panel); }
+nav .tag { font-size:11px; color:var(--ink2); }
+#plot { min-height:520px; }
+aside { border-left:1px solid var(--line); padding:12px 16px; overflow:auto; max-height: calc(100vh - 90px); }
+aside h3 { font-size:15px; margin:4px 0 8px; }
+.kv { display:grid; grid-template-columns: 120px 1fr; gap:2px 8px; font-size:13px; }
+.kv div:nth-child(odd) { color:var(--ink2); }
+.bar { display:flex; align-items:center; gap:6px; font-size:12px; margin:2px 0; }
+.bar span.b { display:inline-block; height:8px; background:var(--accent); border-radius:2px; }
+.ok { color:var(--good); font-weight:600; } .no { color:var(--bad); font-weight:600; }
+pre { white-space:pre-wrap; font-size:11px; background:var(--panel); padding:8px; border-radius:4px; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } nav, aside { max-height:none; border:0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Neural geometry shape fitter: explorer</h1>
+  <p>Top-3 PCA point clouds of real activations, controls and synthetic test shapes, with the shape fitted by a network trained only on synthetic shapes.
+  Points are coloured by concept value. Red marks the fitted shape. Results that miss expectations are shown too.
+  <a href="https://github.com/BurnyCoder/fitting-geometrical-shapes-in-llm-mechanistic-interpretability">Code, paper and reports</a>.</p>
+</header>
+<main>
+  <nav id="nav"></nav>
+  <div id="plot"></div>
+  <aside id="info"></aside>
+</main>
+<script>
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+async function load(id, btn) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const d = await (await fetch('data/' + id + '.json')).json();
+  const pts = d.points, shp = d.shape;
+  let col = d.labels.map(Number); if (col.some(isNaN)) { const u=[...new Set(d.labels)]; col = d.labels.map(l => u.indexOf(l)); }
+  const traces = [{type:'scatter3d', mode:'markers', name:'activations', x:pts.map(p=>p[0]), y:pts.map(p=>p[1]), z:pts.map(p=>p[2]),
+      text:d.labels, hovertemplate:'%{text}<extra></extra>', marker:{size:3, color:col, colorscale: d.cyclic ? 'Twilight' : 'Viridis', opacity:.9}}];
+  traces.push({type:'scatter3d', mode:'markers', name:'fitted ' + d.family, x:shp.map(p=>p[0]), y:shp.map(p=>p[1]), z:shp.map(p=>p[2]),
+      hoverinfo:'skip', marker:{size: shp.length <= 12 ? 7 : 1.5, color:'#e34948', opacity: shp.length <= 12 ? 1 : .45, symbol: shp.length <= 12 ? 'x' : 'circle'}});
+  Plotly.react('plot', traces, {paper_bgcolor:css('--surface'), font:{color:css('--ink')}, margin:{l:0,r:0,t:10,b:0}, showlegend:true,
+      legend:{x:0, y:1}, scene:{xaxis:{title:'PC1'}, yaxis:{title:'PC2'}, zaxis:{title:'PC3'}, aspectmode:'data'}}, {responsive:true});
+  const probs = Object.entries(d.probs).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const met = d.expected_fine ? (d.expected_fine.includes(d.majority || d.family) ? '<span class="ok">matches expectation</span>' : '<span class="no">differs from expectation</span>') : '';
+  document.getElementById('info').innerHTML = `<h3>${d.id}</h3><div class="kv">
+    <div>source</div><div>${d.source || ''}</div><div>N × D</div><div>${d.N} × ${d.D}</div>
+    <div>top-3 variance</div><div>${(100*d.top3).toFixed(0)}%</div>
+    <div>expected</div><div>${d.expected_coarse || '-'} / ${(d.expected_fine||['-']).join(', ')}</div>
+    <div>fit (full cloud)</div><div><b>${d.family}</b></div>
+    <div>subsample majority</div><div>${d.majority || '-'} ${met}</div>
+    <div>flags</div><div>${d.flags || '-'}</div></div>
+    <h3 style="margin-top:12px">Class probabilities</h3>${probs.map(([k,v]) => `<div class="bar"><span style="width:80px">${k}</span><span class="b" style="width:${Math.max(1,160*v)}px"></span>${v.toFixed(2)}</div>`).join('')}
+    <h3 style="margin-top:12px">Canonical parameters (PCA coordinates)</h3><pre>${JSON.stringify(d.params, (k,v) => typeof v === 'number' ? Number(v.toFixed(4)) : v, 1)}</pre>`;
+}
+fetch('data/manifest.json').then(r => r.json()).then(m => {
+  const nav = document.getElementById('nav');
+  for (const [group, items] of Object.entries(m)) {
+    nav.insertAdjacentHTML('beforeend', `<h2>${group}</h2>`);
+    for (const it of items) {
+      const b = document.createElement('button');
+      b.innerHTML = `${it.id}<br><span class="tag">fit: ${it.family}${it.expected ? ' · expected: ' + it.expected : ''}</span>`;
+      b.onclick = () => load(it.id, b); nav.appendChild(b);
+    }
+  }
+  const first = Object.values(m)[0][0]; load(first.id, nav.querySelector('button'));
+});
+</script>
+</body>
+</html>
+"""
+
+
+def build_site(cfg: dict, synth_gallery: Path | None = None) -> Path:
+    res = Path(cfg["paths"]["results"])
+    data = DOCS / "data"
+    if data.exists():
+        shutil.rmtree(data)
+    data.mkdir(parents=True)
+    manifest = {"Real activations": [], "Controls": [], "Synthetic test examples": []}
+    rr = res / "real" / "real_results.json"
+    for r in json.load(open(rr)) if rr.exists() else []:
+        v = json.load(open(res / "real" / "viz" / f"{r['id']}.json"))
+        st = r.get("stability", {})
+        flags = ", ".join(f for f, on in (("lambda3/lambda4 < 1.5", r["gap_flag"]), ("out-of-distribution residual", r["ood"])) if on)
+        rec = {"id": r["id"], "N": r["N"], "D": r["D"], "top3": r["top3_explained"], "family": r["family"], "probs": r["probs"],
+               "params": r["params"], "majority": st.get("fine_majority"), "expected_coarse": r["meta"].get("expected_coarse"),
+               "expected_fine": r["meta"].get("expected_fine"), "source": r["meta"].get("source", ""), "flags": flags,
+               "cyclic": any(s in r["id"] for s in ("weekday", "months", "days", "grokking", "colors")), **v}
+        json.dump(rec, open(data / f"{r['id']}.json", "w"))
+        group = "Real activations" if r["id"].startswith("R") else "Controls"
+        exp = ", ".join(r["meta"].get("expected_fine") or [])
+        manifest[group].append({"id": r["id"], "family": st.get("fine_majority", r["family"]), "expected": exp})
+    if synth_gallery and synth_gallery.exists():
+        for rec in json.load(open(synth_gallery)):
+            json.dump(rec, open(data / f"{rec['id']}.json", "w"))
+            manifest["Synthetic test examples"].append({"id": rec["id"], "family": rec["family"], "expected": rec["expected_fine"][0]})
+    manifest = {k: v for k, v in manifest.items() if v}
+    json.dump(manifest, open(data / "manifest.json", "w"), indent=1)
+    (DOCS / "index.html").write_text(PAGE, encoding="utf-8")
+    (DOCS / ".nojekyll").write_text("", encoding="utf-8")
+    log.info("site built: %s", {k: len(v) for k, v in manifest.items()})
+    return DOCS / "index.html"

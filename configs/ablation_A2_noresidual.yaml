@@ -1,0 +1,7 @@
+# Ablation A2: drop the input-residual term (points -> predicted shape) from the training loss.
+run_name: A2_noresidual_s0
+loss:
+  w_residual: 0.0
+train:   # shorter budget shared by all ablations and their matched reference A0
+  steps: 12000
+  max_minutes: 60

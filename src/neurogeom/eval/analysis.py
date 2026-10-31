@@ -89,11 +89,12 @@ def hypotheses_synth(df: pd.DataFrame, reps: int, ablation_frames: dict) -> dict
         est, lo, hi = c3["median_chamfer_diff"]
         h["H5b_refinement"] = {"comparison": "median Chamfer(method) - median Chamfer(no refinement)", "estimate": est, "ci": [lo, hi],
                                "supported": hi < 0, "p": c3["wilcoxon_p_chamfer"], "n": c3["n"]}
-    if "A1_paramloss" in ablation_frames:
-        both = pd.concat([df[df.system == "method"], ablation_frames["A1_paramloss"]])
-        c = paired(both, "method", "A1_paramloss", reps)
+    if "A1_paramloss" in ablation_frames and "A0_reference" in ablation_frames:
+        # matched budget: the unchanged method retrained with the ablation budget (A0) vs A1
+        both = pd.concat([ablation_frames["A0_reference"], ablation_frames["A1_paramloss"]])
+        c = paired(both, "A0_reference", "A1_paramloss", reps)
         est, lo, hi = c["median_chamfer_diff"]
-        h["H5a_chamfer_loss"] = {"comparison": "median Chamfer(method) - median Chamfer(parameter-space loss)", "estimate": est,
+        h["H5a_chamfer_loss"] = {"comparison": "median Chamfer(A0 method, short budget) - median Chamfer(A1 parameter-space loss)", "estimate": est,
                                  "ci": [lo, hi], "supported": hi < 0, "p": c["wilcoxon_p_chamfer"], "n": c["n"]}
     adj = holm({k: v["p"] for k, v in h.items() if v.get("p") is not None})
     for k, p in adj.items():

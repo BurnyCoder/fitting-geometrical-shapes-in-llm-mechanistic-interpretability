@@ -1,0 +1,7 @@
+# Ablation A4: DeepSets encoder (mean+max pooling, Zaheer et al. 2017) instead of the Set Transformer.
+run_name: A4_deepsets_s0
+model:
+  encoder: deepsets
+train:   # shorter budget shared by all ablations and their matched reference A0
+  steps: 12000
+  max_minutes: 60

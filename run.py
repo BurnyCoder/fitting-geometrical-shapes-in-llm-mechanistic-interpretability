@@ -4,7 +4,8 @@ Global context: each phase is one clearly named step of the research pipeline, i
 module of src/neurogeom; this file only wires them together, sets up timestamped logging per phase,
 and enforces the preregistration guard (no training before reports/preregistration.md is committed).
 `all` runs the phases in order: check-env -> catalog -> train -> eval-synth -> extract-real ->
-eval-real -> report. See README.md ("What happens when you run it").
+eval-real -> report -> gallery -> site (publish = HF upload, run explicitly).
+See README.md ("What happens when you run it").
 """
 
 from __future__ import annotations
@@ -72,6 +73,30 @@ def phase_report(cfg):
     build_all(cfg)
 
 
+def phase_gallery(cfg):
+    import json
+    import torch
+    from neurogeom.eval.gallery import build_gallery
+    from neurogeom.train.loop import load_model
+    dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model, _ = load_model(Path(cfg["paths"]["checkpoints"]) / "final.pt", dev)
+    t = json.load(open(Path(cfg["paths"]["results"]) / "synth" / "meta.json"))["temperature"]
+    build_gallery(model, cfg, t, dev, Path(cfg["paths"]["results"]) / "gallery.json")
+
+
+def phase_site(cfg):
+    from neurogeom.report.site import build_site
+    build_site(cfg, Path(cfg["paths"]["results"]) / "gallery.json")
+
+
+def phase_publish(cfg):
+    import os
+    from neurogeom.report.publish import add_to_collection, upload_run
+    repo = f"{os.environ.get('NEUROGEOM_HF_REPO', 'BurnyCoder/neurogeom-shape-fitter')}-{cfg['run_name'].replace('_', '-')}"
+    upload_run(cfg, repo, Path(cfg["paths"]["results"]) / "analysis.json")
+    add_to_collection([repo])
+
+
 PHASES = {
     "check-env": phase_check_env,
     "catalog": phase_catalog,
@@ -80,6 +105,9 @@ PHASES = {
     "extract-real": phase_extract_real,
     "eval-real": phase_eval_real,
     "report": phase_report,
+    "gallery": phase_gallery,
+    "site": phase_site,
+    "publish": phase_publish,
 }
 
 
@@ -96,7 +124,7 @@ def main(argv=None):
     if args.run_name:
         overrides["run_name"] = args.run_name
     cfg = load_config(args.config, overrides)
-    phases = list(PHASES) if "all" in args.phases else args.phases
+    phases = [p for p in PHASES if p != "publish"] if "all" in args.phases else args.phases
     for ph in phases:
         log_path = setup_logging(cfg["paths"]["logs"], f"{cfg['run_name']}_{ph}")
         log.info("=== phase %s | config %s | run %s | log %s", ph, cfg["config_name"], cfg["run_name"], log_path)

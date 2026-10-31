@@ -92,6 +92,25 @@ def real_table(results: list[dict]) -> str:
     return "\n".join(rows)
 
 
+def _tex_escape(t: str) -> str:
+    t = t.replace("\\", "/").replace("**", "").replace("`", "")
+    for a, b in (("&", r"\&"), ("%", r"\%"), ("_", r"\_"), ("#", r"\#"), ("->", r"$\to$"), ("<", r"$<$"), (">", r"$>$")):
+        t = t.replace(a, b)
+    return t
+
+
+def md_to_tex(md: str, size: str = r"\scriptsize") -> str:
+    """Convert a generated markdown pipe table into a LaTeX booktabs tabular."""
+    lines = [l for l in md.strip().splitlines() if l.startswith("|")]
+    rows = [[c.strip() for c in l.strip("|").split("|")] for l in lines if not set(l) <= set("|-: ")]
+    ncol = len(rows[0])
+    out = [size, r"\begin{tabular}{" + "l" * ncol + "}", r"\toprule",
+           " & ".join(r"\textbf{" + _tex_escape(c) + "}" for c in rows[0]) + r" \\", r"\midrule"]
+    out += [" & ".join(_tex_escape(c) for c in r) + r" \\" for r in rows[1:]]
+    out += [r"\bottomrule", r"\end{tabular}"]
+    return "\n".join(out)
+
+
 def replace_block(path: Path, name: str, content: str) -> None:
     if not path.exists():
         return
@@ -156,6 +175,7 @@ def build_all(cfg: dict, ablation_runs: dict | None = None) -> dict:
         tables["unambiguous_table"] = systems_table(analysis["systems_unambiguous_subset"], order)
     for name, t in tables.items():
         (GEN_MD / f"{name}.md").write_text(t + "\n", encoding="utf-8")
+        (GEN_TEX / f"{name}.tex").write_text(md_to_tex(t) + "\n", encoding="utf-8")
         for doc in [REPO_ROOT / "README.md", *sorted((REPO_ROOT / "reports").glob("*.md"))]:
             replace_block(doc, name, t)
     (GEN_TEX / "numbers.tex").write_text(tex_macros(analysis), encoding="utf-8")

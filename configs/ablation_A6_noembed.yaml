@@ -1,0 +1,7 @@
+# Ablation A6: no R^D-embedding augmentation (shapes only ever generated directly in 3D).
+run_name: A6_noembed_s0
+synth:
+  embed_prob: 0.0
+train:   # shorter budget shared by all ablations and their matched reference A0
+  steps: 12000
+  max_minutes: 60

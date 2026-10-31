@@ -1,0 +1,5 @@
+# A0: the unchanged method trained with the shorter ablation budget - the matched reference for A1/A2/A4/A6.
+run_name: A0_reference_s0
+train:   # shorter budget shared by all ablations and their matched reference A0
+  steps: 12000
+  max_minutes: 60

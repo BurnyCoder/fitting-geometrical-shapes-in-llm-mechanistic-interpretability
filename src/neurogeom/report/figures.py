@@ -23,10 +23,10 @@ from neurogeom.logging_utils import get_logger  # noqa: E402
 log = get_logger(__name__)
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-SYSTEM_ORDER = ["method", "A3_norefine", "A5_gaic", "A5_hybrid", "A1_paramloss", "A2_noresidual", "A4_deepsets", "A6_noembed",
+SYSTEM_ORDER = ["method", "A3_norefine", "A5_gaic", "A5_hybrid", "A0_reference", "A1_paramloss", "A2_noresidual", "A4_deepsets", "A6_noembed",
                 "B1_classical", "B2_features", "B3a_null", "B3b_circle", "B3c_random"]
 SYSTEM_LABEL = {"method": "Method (network + refinement)", "A3_norefine": "A3: no refinement", "A5_gaic": "A5: G-AIC selection",
-                "A5_hybrid": "A5: hybrid selection", "A1_paramloss": "A1: parameter-space loss", "A2_noresidual": "A2: no residual term",
+                "A5_hybrid": "A5: hybrid selection", "A0_reference": "A0: method, ablation budget", "A1_paramloss": "A1: parameter-space loss", "A2_noresidual": "A2: no residual term",
                 "A4_deepsets": "A4: DeepSets encoder", "A6_noembed": "A6: no R^D augmentation", "B1_classical": "B1: classical fit + G-AIC",
                 "B2_features": "B2: features + boosting", "B3a_null": "B3a: always blob", "B3b_circle": "B3b: always circle",
                 "B3c_random": "B3c: random shape"}
