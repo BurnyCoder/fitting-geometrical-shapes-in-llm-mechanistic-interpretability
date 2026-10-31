@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import time
 from pathlib import Path
 
@@ -62,6 +63,27 @@ def validate(model, val_set, cfg) -> dict:
     return {"val_acc": sum(accs) / len(accs), "val_cd_teacher": sum(cds) / len(cds)}
 
 
+CURVE_RE = re.compile(r"step\s+(\d+) \| N=\s*(\d+) \| loss ([\d.]+) \| type ([\d.]+) acc ([\d.]+) \| geo ([\d.]+) \| gn ([\d.]+) \| ([\d.]+) min")
+VAL_RE = re.compile(r"VAL step (\d+) \| acc ([\d.]+) \| teacher-forced chamfer ([\d.]+)")
+
+
+def curve_from_log(path: Path, max_step: int) -> list[dict]:
+    """Recover training-curve records up to max_step from a training log (used when resuming a crashed run
+    whose checkpoint predates curve saving)."""
+    out = []
+    for line in Path(path).read_text(encoding="utf-8", errors="ignore").splitlines():
+        m = CURVE_RE.search(line)
+        if m and int(m.group(1)) <= max_step:
+            st, n, tot, ty, acc, geo, gn, mins = m.groups()
+            out.append({"step": int(st), "n": int(n), "total": float(tot), "type": float(ty), "acc": float(acc), "geo": float(geo),
+                        "grad_norm": float(gn), "minutes": float(mins), "recovered_from_log": True})
+            continue
+        m = VAL_RE.search(line)
+        if m and int(m.group(1)) <= max_step:
+            out.append({"step": int(m.group(1)), "val_acc": float(m.group(2)), "val_cd_teacher": float(m.group(3)), "recovered_from_log": True})
+    return out
+
+
 def train(cfg: dict) -> dict:
     device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")
     seed_everything(cfg["seed"])
@@ -70,22 +92,48 @@ def train(cfg: dict) -> dict:
     n_params = sum(p.numel() for p in model.parameters())
     log.info("model: %s encoder, %d parameters, device %s", cfg["model"]["encoder"], n_params, device)
     opt = torch.optim.AdamW(model.parameters(), lr=tc["lr"], weight_decay=tc["weight_decay"])
-    sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: lr_lambda(s, tc["warmup_steps"], tc["steps"]))
-    gen = make_generator(stream_seed(cfg["seed"], "train"), device)
+    start_step, prior_minutes, curve, rewarm_from = 0, 0.0, [], None
+    if tc.get("resume"):
+        ck = torch.load(tc["resume"], map_location="cpu", weights_only=False)
+        model.load_state_dict(ck["model"])
+        start_step = ck["step"] + 1
+        prior_minutes = ck.get("minutes", tc.get("resume_minutes", 0.0))
+        curve = ck.get("curve") or (curve_from_log(Path(tc["resume_log"]), ck["step"]) if tc.get("resume_log") else [])
+        if "opt" in ck:
+            opt.load_state_dict(ck["opt"])
+        else:  # optimiser moments were not saved: re-warm the learning rate over 500 steps
+            rewarm_from = start_step
+        log.info("resumed from %s at step %d (%.1f min done, optimiser state %s)", tc["resume"], start_step, prior_minutes,
+                 "restored" if "opt" in ck else "reset with 500-step re-warmup")
+
+    def lr_at(s):
+        f = lr_lambda(s, tc["warmup_steps"], tc["steps"])
+        if rewarm_from is not None:
+            f *= min(1.0, (s - rewarm_from + 1) / 500)
+        return f
+    sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda i: lr_at(start_step + i))
+    gen = make_generator(stream_seed(cfg["seed"], "train") + start_step, device)
     val_set = build_val_set(cfg, device)
     ckpt_dir = Path(cfg["paths"]["checkpoints"])
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     res_dir = Path(cfg["paths"]["results"]) / "train"
     res_dir.mkdir(parents=True, exist_ok=True)
-    curve, t0 = [], time.time()
+    t0 = time.time() - prior_minutes * 60
     aux_steps = max(1, int(cfg["loss"]["aux_anneal_frac"] * tc["steps"]))
-    last_step, queue = 0, []
-    for step in range(tc["steps"]):
-        if not queue:  # refill: several steps' data from one generator call (same N within a chunk)
+    last_step, queue = start_step, []
+    for step in range(start_step, tc["steps"]):
+        tries = 0
+        while not queue:  # refill: several steps' data from one generator call (same N within a chunk)
             n = int(log_uniform(1, cfg["synth"]["n_min"], cfg["synth"]["n_max"], gen, device).round().clamp(cfg["synth"]["n_min"], cfg["synth"]["n_max"]))
             # token budget: cap batch x N so large clouds do not spill out of the 8 GB of VRAM
             b_eff = max(64, min(tc["batch_size"], tc["token_budget"] // n))
-            queue = generate_chunks(b_eff, n, tc["gen_chunk"], cfg["synth"], cfg["dense"], gen, device)
+            try:
+                queue = generate_chunks(b_eff, n, tc["gen_chunk"], cfg["synth"], cfg["dense"], gen, device)
+            except Exception as e:  # noqa: BLE001 - a rare numerical failure must not kill a 2-hour run
+                tries += 1
+                log.warning("step %d: data generation failed (%s); drawing a new chunk (try %d)", step, e, tries)
+                if tries > 5:
+                    raise
         parts = queue.pop()
         x = torch.cat([p["x"] for p in parts])
         mask = torch.cat([p["mask"] for p in parts])
@@ -113,15 +161,17 @@ def train(cfg: dict) -> dict:
             v = validate(model, val_set, cfg)
             curve.append({"step": step, "minutes": elapsed / 60, **v})
             log.info("VAL step %d | acc %.4f | teacher-forced chamfer %.4f", step, v["val_acc"], v["val_cd_teacher"])
-        if (step + 1) % tc["ckpt_every"] == 0:
-            torch.save({"model": model.state_dict(), "cfg": cfg, "step": step}, ckpt_dir / "last.pt")
+        if (step + 1) % tc["ckpt_every"] == 0:  # full state: model, optimiser, curve, elapsed time -> exact resume
+            torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "cfg": cfg, "step": step,
+                        "minutes": elapsed / 60, "curve": curve}, ckpt_dir / "last.pt")
         if elapsed / 60 > tc["max_minutes"]:
             log.info("wall-clock cap of %.0f min reached at step %d", tc["max_minutes"], step)
             break
     v = validate(model, val_set, cfg)
     curve.append({"step": last_step, "minutes": (time.time() - t0) / 60, **v})
     torch.save({"model": model.state_dict(), "cfg": cfg, "step": last_step}, ckpt_dir / "final.pt")
-    summary = {"steps_done": last_step + 1, "minutes": (time.time() - t0) / 60, "n_params": n_params, **v}
+    summary = {"steps_done": last_step + 1, "minutes": (time.time() - t0) / 60, "n_params": n_params,
+               "resumed_from_step": start_step if tc.get("resume") else None, **v}
     with open(res_dir / "curve.json", "w") as f:
         json.dump(curve, f)
     with open(res_dir / "summary.json", "w") as f:

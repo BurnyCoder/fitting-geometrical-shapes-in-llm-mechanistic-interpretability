@@ -62,7 +62,8 @@ train:
   log_every: 200
   val_every: 5000
   val_size: 2048
-  ckpt_every: 10000
+  ckpt_every: 2000      # full training state (model + optimiser + curve) for exact resume
+  resume: null          # path to a checkpoint to resume from
   max_minutes: 110     # wall-clock cap for one seed (8 GB laptop GPU budget)
 
 # ---------------------------------------------------------------- inference
