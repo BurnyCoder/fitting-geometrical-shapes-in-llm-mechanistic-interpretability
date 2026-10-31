@@ -27,3 +27,4 @@ paper/*.blg
 .pytest_cache/
 .claude/
 !results/**/probs.npz
+results/*/README_hf.md
