@@ -97,7 +97,7 @@ def ood_threshold(cfg: dict) -> dict:
     p = Path(cfg["paths"]["results"]) / "synth" / "per_sample.csv"
     if not p.exists():
         return {}
-    df = pd.read_csv(p)
+    df = pd.read_csv(p, usecols=["system", "correct", "residual", "n_bin"])   # avoids the mixed-type 'ambiguous' column
     df = df[(df.system == "method") & df.correct]
     return {int(b): float(g.residual.quantile(0.95)) for b, g in df.groupby("n_bin")}
 
