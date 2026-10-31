@@ -77,6 +77,15 @@ def load_truncated(model_id: str, layer: int, max_gpu_gib: float = 6.5, random_i
     return model, tok
 
 
+def free_cuda() -> None:
+    """Release GPU memory of models the caller has already deleted. accelerate's dispatch hooks form
+    reference cycles, so `del model` alone left Llama's ~7 GB allocated until gc ran (observed: the
+    following eval-real phase ran with 5.7 GB paged to shared system memory)."""
+    import gc
+    gc.collect()
+    torch.cuda.empty_cache()
+
+
 @torch.no_grad()
 def last_token_acts(model, tok, prompts: list[str], layer: int, batch: int = 32) -> np.ndarray:
     """hidden_states[layer] at the last (non-padding) token of every prompt, (N, D) float32."""

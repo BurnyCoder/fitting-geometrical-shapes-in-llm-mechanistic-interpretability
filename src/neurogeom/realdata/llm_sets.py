@@ -25,7 +25,7 @@ import numpy as np
 import torch
 
 from neurogeom.logging_utils import get_logger
-from neurogeom.realdata.common import hf_env, last_token_acts, load_truncated, log_prompts, save_cloud, token_acts
+from neurogeom.realdata.common import free_cuda, hf_env, last_token_acts, load_truncated, log_prompts, save_cloud, token_acts
 
 log = get_logger(__name__)
 LLAMA = "meta-llama/Llama-3.1-8B"
@@ -127,7 +127,7 @@ def llama_layer5(cfg: dict, random_init: bool = False) -> None:
             means = np.stack([x[[t == v for t in targets]].mean(0) for v in u])
             save_cloud(cfg, did + "_means", means, u, {**meta, "source": meta["source"] + " (mean per class)"})
     del model
-    torch.cuda.empty_cache()
+    free_cuda()
 
 
 def llama_layer19(cfg: dict) -> None:
@@ -144,7 +144,7 @@ def llama_layer19(cfg: dict) -> None:
                                          "source": "Bhalla et al. 2026 Table 1 template", "expected_coarse": coarse,
                                          "expected_fine": fine, "prereg": pre})
     del model
-    torch.cuda.empty_cache()
+    free_cuda()
 
 
 def llama_layer12_truth(cfg: dict) -> None:
@@ -157,7 +157,7 @@ def llama_layer12_truth(cfg: dict) -> None:
                                                         "source": "geometry-of-truth cities.csv (Marks & Tegmark 2024)",
                                                         "expected_coarse": "0d", "expected_fine": ["clusters"], "prereg": True})
     del model
-    torch.cuda.empty_cache()
+    free_cuda()
 
 
 def pythia_counting(cfg: dict) -> None:
@@ -169,4 +169,4 @@ def pythia_counting(cfg: dict) -> None:
                                                    "source": "mean hidden state per char count since newline, pile-10k wrapped at 150",
                                                    "expected_coarse": "1d", "expected_fine": ["helix"], "prereg": False})
     del model
-    torch.cuda.empty_cache()
+    free_cuda()
