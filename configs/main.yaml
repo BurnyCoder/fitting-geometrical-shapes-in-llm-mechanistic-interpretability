@@ -1,0 +1,3 @@
+# Main run: the method as preregistered (Set Transformer, Chamfer + residual + aux loss, refinement,
+# classifier selection). Seeds are passed on the command line: run.py train --config main.yaml --seed 1 --run-name main_s1
+run_name: main_s0

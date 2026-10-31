@@ -16,7 +16,7 @@ import math
 import torch
 import torch.nn.functional as F
 
-from neurogeom.geometry.rotation6d import matrix_to_rot6d, random_rotation, rot6d_to_matrix
+from neurogeom.geometry.rotation6d import det3, matrix_to_rot6d, random_rotation, rot6d_to_matrix
 from neurogeom.shapes.base import ShapeFamily, _inv_softplus
 
 K_VALUES = (2, 3, 4, 5, 6)
@@ -288,7 +288,7 @@ class Polytope(ShapeFamily):
         out = dict(p)
         out["center"] = s.unsqueeze(-1) * (q @ p["center"].unsqueeze(-1)).squeeze(-1) + t
         rot = p["rot"]
-        improper = torch.linalg.det(q) < 0
+        improper = det3(q) < 0
         if bool(improper.any()):
             # All six regular polytopes are achiral: a mirror symmetry F of the template (det -1) turns
             # q R into the proper rotation q R F with the same vertex set (y-flip; x<->y swap for the tetrahedron).

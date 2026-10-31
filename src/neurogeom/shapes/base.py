@@ -21,7 +21,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 
-from neurogeom.geometry.rotation6d import matrix_to_rot6d, random_rotation, rot6d_to_matrix
+from neurogeom.geometry.rotation6d import det3, matrix_to_rot6d, random_rotation, rot6d_to_matrix
 
 TWO_PI = 2.0 * math.pi
 
@@ -208,7 +208,7 @@ class ShapeFamily:
     def transform(self, p: dict, q: torch.Tensor, t: torch.Tensor, s: torch.Tensor) -> dict:
         """Parameters of the image of the shape under x -> s * q @ x + t (q orthogonal, s > 0)."""
         out = dict(p)
-        improper = torch.linalg.det(q) < 0
+        improper = det3(q) < 0
         if bool(improper.any()):
             f = torch.tensor(self.MIRROR, dtype=q.dtype, device=q.device)
             out = merge_where(improper, out, self.mirror_params(dict(p)))

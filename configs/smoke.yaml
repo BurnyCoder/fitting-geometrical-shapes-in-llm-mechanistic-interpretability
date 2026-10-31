@@ -3,6 +3,8 @@ run_name: smoke
 train:
   steps: 300
   batch_size: 64
+  token_budget: 32768
+  gen_chunk: 2
   warmup_steps: 50
   log_every: 50
   val_every: 150

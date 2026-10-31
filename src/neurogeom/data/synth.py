@@ -106,3 +106,31 @@ def generate_mixed(b: int, n: int, cfg: dict, cfg_dense: dict, gen: torch.Genera
     counts = torch.full((k,), b // k)
     counts[torch.randperm(k, generator=gen, device=device)[: b % k].cpu()] += 1
     return [generate_family(i, int(c), n, cfg, cfg_dense, gen, device) for i, c in enumerate(counts) if c > 0]
+
+
+def slice_part(part: dict, sl: slice) -> dict:
+    """Slice every per-sample tensor of a generator output (recursing into the gt dict)."""
+    out = {}
+    for k, v in part.items():
+        if isinstance(v, dict):
+            out[k] = slice_part(v, sl)
+        elif torch.is_tensor(v) and v.dim() > 0:
+            out[k] = v[sl]
+        else:
+            out[k] = v
+    return out
+
+
+def generate_chunks(b: int, n: int, n_chunks: int, cfg: dict, cfg_dense: dict, gen: torch.Generator, device) -> list[list[dict]]:
+    """Generate n_chunks training steps at once (same N) and split them: the generator is bound by
+    kernel-launch overhead, so one call with n_chunks * b samples costs about as much as one with b."""
+    big = generate_mixed(b * n_chunks, n, cfg, cfg_dense, gen, device)
+    steps = []
+    for i in range(n_chunks):
+        parts = []
+        for part in big:
+            m = part["x"].shape[0] // n_chunks
+            if m > 0:
+                parts.append(slice_part(part, slice(i * m, (i + 1) * m)))
+        steps.append(parts)
+    return steps

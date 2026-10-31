@@ -180,6 +180,16 @@ entries:
     citation: "Moisescu-Pareja et al. 2025, On the geometry and topology of representations: the manifolds of modular addition; Zhong et al. 2023 (pizza = disc)"
     url: https://arxiv.org/abs/2512.25060
     verified: "secondary (abstract only says manifolds studied with topology tools; disc/torus from a full-text read, not re-verified)"
+  - id: pizza_disc
+    shape: filled disc ("pizza") of embeddings
+    vocab_class: disc
+    concept: residues in modular addition (pizza algorithm, attention-rate-dependent)
+    models: 1-layer transformers trained from scratch
+    method: PCA of embeddings / logit analysis
+    top3_pca: "yes (PCs 1-2)"
+    citation: "Zhong, Liu, Tegmark, Andreas 2023, The Clock and the Pizza: Two Stories in Mechanistic Explanation of Neural Networks"
+    url: https://arxiv.org/abs/2306.17844
+    verified: abstract
   - id: grid_cell_torus
     shape: torus
     vocab_class: torus
