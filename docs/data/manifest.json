@@ -1,0 +1,293 @@
+{
+ "Real activations": [
+  {
+   "id": "R1_gpt2_wpos",
+   "family": "sphere",
+   "expected": "helix"
+  },
+  {
+   "id": "R2_grokking_WE",
+   "family": "helix",
+   "expected": "arc, ellipse"
+  },
+  {
+   "id": "R3_tms_n20",
+   "family": "sphere",
+   "expected": "polytope, clusters"
+  },
+  {
+   "id": "R3_tms_n6",
+   "family": "polytope",
+   "expected": "polytope, clusters"
+  },
+  {
+   "id": "R3_tms_n8",
+   "family": "polytope",
+   "expected": "polytope, clusters"
+  },
+  {
+   "id": "R4_llama_counting",
+   "family": "ringing",
+   "expected": "helix"
+  },
+  {
+   "id": "R4b_pythia_counting",
+   "family": "ringing",
+   "expected": "helix"
+  },
+  {
+   "id": "R5a_llama_weekdays",
+   "family": "helix",
+   "expected": "arc"
+  },
+  {
+   "id": "R5a_llama_weekdays_means",
+   "family": "sphere",
+   "expected": "arc"
+  },
+  {
+   "id": "R5b_llama_months",
+   "family": "helix",
+   "expected": "arc"
+  },
+  {
+   "id": "R5b_llama_months_means",
+   "family": "helix",
+   "expected": "arc"
+  },
+  {
+   "id": "R5c_llama_days_time",
+   "family": "ringing",
+   "expected": "arc"
+  },
+  {
+   "id": "R6_llama_years",
+   "family": "cone",
+   "expected": "helix"
+  },
+  {
+   "id": "R7_llama_colors",
+   "family": "cone",
+   "expected": "paraboloid"
+  },
+  {
+   "id": "R8a_llama_temperature",
+   "family": "ringing",
+   "expected": "line"
+  },
+  {
+   "id": "R8b_llama_age",
+   "family": "clusters",
+   "expected": "line"
+  },
+  {
+   "id": "R9_llama_truth_cities",
+   "family": "ringing",
+   "expected": "clusters"
+  }
+ ],
+ "Controls": [
+  {
+   "id": "C1_gp_0",
+   "family": "helix",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_1",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_2",
+   "family": "helix",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_3",
+   "family": "helix",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_4",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_5",
+   "family": "helix",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_6",
+   "family": "helix",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_7",
+   "family": "helix",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_8",
+   "family": "helix",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_gp_9",
+   "family": "helix",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_0",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_1",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_2",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_3",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_4",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_5",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_6",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_7",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_8",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C1_walk_9",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "C3_gpt2_wpos_init",
+   "family": "blob",
+   "expected": "blob"
+  },
+  {
+   "id": "C3_grokking_WE_init",
+   "family": "blob",
+   "expected": "blob"
+  },
+  {
+   "id": "C3_grokking_WE_memorised",
+   "family": "blob",
+   "expected": ""
+  },
+  {
+   "id": "C3_llama_counting_init",
+   "family": "clusters",
+   "expected": "blob"
+  },
+  {
+   "id": "C3_llama_months_init",
+   "family": "clusters",
+   "expected": "blob"
+  },
+  {
+   "id": "C3_llama_weekdays_init",
+   "family": "polytope",
+   "expected": "blob"
+  },
+  {
+   "id": "C3_tms_dense",
+   "family": "polytope",
+   "expected": ""
+  }
+ ],
+ "Synthetic test examples": [
+  {
+   "id": "synth_blob",
+   "family": "blob",
+   "expected": "blob"
+  },
+  {
+   "id": "synth_clusters",
+   "family": "clusters",
+   "expected": "clusters"
+  },
+  {
+   "id": "synth_polytope",
+   "family": "polytope",
+   "expected": "polytope"
+  },
+  {
+   "id": "synth_line",
+   "family": "line",
+   "expected": "line"
+  },
+  {
+   "id": "synth_arc",
+   "family": "arc",
+   "expected": "arc"
+  },
+  {
+   "id": "synth_ellipse",
+   "family": "ellipse",
+   "expected": "ellipse"
+  },
+  {
+   "id": "synth_helix",
+   "family": "helix",
+   "expected": "helix"
+  },
+  {
+   "id": "synth_ringing",
+   "family": "ringing",
+   "expected": "ringing"
+  },
+  {
+   "id": "synth_disc",
+   "family": "disc",
+   "expected": "disc"
+  },
+  {
+   "id": "synth_sphere",
+   "family": "sphere",
+   "expected": "sphere"
+  },
+  {
+   "id": "synth_paraboloid",
+   "family": "paraboloid",
+   "expected": "paraboloid"
+  },
+  {
+   "id": "synth_cone",
+   "family": "cone",
+   "expected": "cone"
+  },
+  {
+   "id": "synth_torus",
+   "family": "torus",
+   "expected": "torus"
+  }
+ ]
+}
