@@ -61,4 +61,20 @@ def render_catalog(out: Path | None = None) -> Path:
     lines += ["", f"Fitter families with at least one empirical anchor in this catalog: {', '.join(f'`{f}`' for f in families)}.", ""]
     out.write_text("\n".join(lines), encoding="utf-8")
     log.info("wrote %s (%d entries)", out, len(cat["entries"]))
+    render_catalog_tex(cat)
+    return out
+
+
+def render_catalog_tex(cat: dict) -> Path:
+    """LaTeX longtable-free compact catalog for the paper appendix (paper/generated/catalog_table.tex)."""
+    from neurogeom.report.numbers import _tex_escape
+    out = REPO_ROOT / "paper" / "generated" / "catalog_table.tex"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    rows = [r"{\scriptsize", r"\begin{tabular}{p{3.2cm}p{3.2cm}p{3.3cm}p{1.5cm}p{1.4cm}p{3.2cm}}", r"\toprule",
+            r"\textbf{Shape} & \textbf{Concept} & \textbf{Model / layer} & \textbf{Top-3 PCA} & \textbf{Family} & \textbf{Source} \\", r"\midrule"]
+    for e in cat["entries"]:
+        rows.append(" & ".join(_tex_escape(str(v)) for v in (e["shape"], e["concept"], e["models"], e["top3_pca"], e["vocab_class"]))
+                    + r" & \href{" + e["url"] + "}{" + _tex_escape(e["citation"][:60]) + r"} \\")
+    rows += [r"\bottomrule", r"\end{tabular}}"]
+    out.write_text("\n".join(rows) + "\n", encoding="utf-8")
     return out

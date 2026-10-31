@@ -67,6 +67,36 @@ def hypotheses_table(h: dict, real: dict | None) -> str:
     return "\n".join(rows)
 
 
+RUN_DESC = {"main": ("Set Transformer", "CE + Chamfer + residual + aux", "full synthetic mix"),
+            "A0": ("Set Transformer", "CE + Chamfer + residual + aux", "full synthetic mix (short budget)"),
+            "A1": ("Set Transformer", "CE + parameter-space loss", "full synthetic mix (short budget)"),
+            "A2": ("Set Transformer", "CE + Chamfer + aux (no residual)", "full synthetic mix (short budget)"),
+            "A4": ("DeepSets", "CE + Chamfer + residual + aux", "full synthetic mix (short budget)"),
+            "A6": ("Set Transformer", "CE + Chamfer + residual + aux", "no R^D embedding (short budget)")}
+
+
+def models_table(results_root: Path) -> str:
+    """One row per trained network found under results/*/train/summary.json (smoke runs excluded)."""
+    import pandas as pd
+    rows = ["| Run | Encoder | Training objective | Data / curriculum | Params | Steps | Minutes | Val. accuracy | Test fine accuracy | Test median Chamfer |",
+            "|---|---|---|---|---|---|---|---|---|---|"]
+    for p in sorted(results_root.glob("*/train/summary.json")):
+        run = p.parent.parent.name
+        if run.startswith("smoke"):
+            continue
+        s = json.load(open(p))
+        enc, obj, data = RUN_DESC.get(run.split("_")[0], ("?", "?", "?"))
+        ps = p.parent.parent / "synth" / "per_sample.csv"
+        acc = cd = "-"
+        if ps.exists():
+            d = pd.read_csv(ps)
+            d = d[d.system == "method"]
+            acc, cd = f"{100 * d.correct.mean():.1f}%", f"{d.chamfer.median():.3f}"
+        rows.append(f"| {run} | {enc} | {obj} | {data} | {s['n_params']:,} | {s['steps_done']} | {s['minutes']:.0f} | "
+                    f"{100 * s['val_acc']:.1f}% | {acc} | {cd} |")
+    return "\n".join(rows)
+
+
 def _pct(x):
     return "n/a" if x is None else f"{100 * x:.0f}%"
 
@@ -94,7 +124,8 @@ def real_table(results: list[dict]) -> str:
 
 def _tex_escape(t: str) -> str:
     t = t.replace("\\", "/").replace("**", "").replace("`", "")
-    for a, b in (("&", r"\&"), ("%", r"\%"), ("_", r"\_"), ("#", r"\#"), ("->", r"$\to$"), ("<", r"$<$"), (">", r"$>$")):
+    for a, b in (("{", r"\{"), ("}", r"\}"), ("&", r"\&"), ("%", r"\%"), ("_", r"\_"), ("#", r"\#"), ("^", r"\textasciicircum{}"),
+                 ("~", r"\textasciitilde{}"), ("->", r"$\to$"), ("<", r"$<$"), (">", r"$>$")):
         t = t.replace(a, b)
     return t
 
@@ -171,6 +202,7 @@ def build_all(cfg: dict, ablation_runs: dict | None = None) -> dict:
     if rr.exists():
         results = json.load(open(rr))
         tables["real_table"] = real_table(results)
+    tables["models_table"] = models_table(res.parent)
     if "systems_unambiguous_subset" in analysis:
         tables["unambiguous_table"] = systems_table(analysis["systems_unambiguous_subset"], order)
     for name, t in tables.items():

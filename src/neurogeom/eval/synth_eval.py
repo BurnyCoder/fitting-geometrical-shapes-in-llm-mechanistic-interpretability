@@ -95,31 +95,45 @@ def eval_method(model, cfg, cells, device, temperature: float, name: str = "meth
 
 def eval_baselines(cfg, cells, device, gbm, per_cell: int) -> list:
     rows = []
-    ec = cfg["eval"]
     back_w = cfg["infer"]["refine_back_weight"]
     gen = make_generator(stream_seed(cfg["seed"], "test", salt="baselines"), device)
     t0 = time.time()
-    for cell, ii, b in iterate(cells, 32, device, subset_per_cell=per_cell):
-        meta = sample_meta(cell, ii, b)
-        x, m = b["x"], b["mask"]
-        # B1: classical fit of every family + geometric AIC
-        cands, sel = classical.fit_classical(x, m, ec["classical_steps"], back_w, gen, restarts=ec["classical_restarts"])
-        ci = sel["cand_index"].tolist()
-        b1 = ([cands[c]["fi"] for c in ci], [cands[c]["raw"][i] for i, c in enumerate(ci)])
-        amb = ambiguity(cands, b["family"])
-        # B2: features + GBM, then the classical fit of the predicted family (reusing B1's per-family fits)
-        feats = features_gbm.features_batch(x, m)
-        pred = gbm.predict(feats)
-        b2 = ([int(p) for p in pred], [best_cand_for(cands, int(p), i, m)["raw"] for i, p in enumerate(pred)])
-        # B3: null (blob), always-circle, random shape
-        b3a = ([INDEX["blob"]] * len(ii), [best_cand_for(cands, INDEX["blob"], i, m)["raw"] for i in range(len(ii))])
-        b3b = ([INDEX["arc"]] * len(ii), [best_cand_for(cands, INDEX["arc"], i, m)["raw"] for i in range(len(ii))])
-        rnd = trivial.random_shapes(len(ii), gen, device)
-        b3c = ([fi for fi, _ in rnd], [_random_raw(fi, p) for fi, p in rnd])
-        for name, (fam, raws) in {"B1_classical": b1, "B2_features": b2, "B3a_null": b3a, "B3b_circle": b3b, "B3c_random": b3c}.items():
-            for k, (mm, r) in enumerate(zip(meta, shape_metrics(fam, raws, b))):
-                rows.append({"system": name, **mm, **r, "prob_pred": np.nan, "ambiguous": bool(amb[k])})
-        log.info("baselines: cell N-bin %d noise-bin %d batch done (%.1f min)", cell["n_bin"], cell["noise_bin"], (time.time() - t0) / 60)
+    # Classical fitting is kernel-launch bound like everything else here: large batches cost about the same
+    # wall time per batch as small ones (256 clouds for N <= 256, 64 for the largest bin to stay within 8 GB).
+    for cell, ii, b in iterate(cells, 256, device, subset_per_cell=per_cell):
+        bs = 256 if cell["x"].shape[1] <= 256 else 64
+        for s0 in range(0, len(ii), bs):
+            sl = slice(s0, s0 + bs)
+            b_sub = {k: (v[sl] if torch.is_tensor(v) else v) for k, v in b.items()}
+            rows += _baseline_batch(cfg, cell, ii[sl], b_sub, gbm, gen, back_w)
+            log.info("baselines: cell N-bin %d noise-bin %d, %d clouds done (%.1f min)", cell["n_bin"], cell["noise_bin"],
+                     len(ii[sl]), (time.time() - t0) / 60)
+    return rows
+
+
+def _baseline_batch(cfg, cell, ii, b, gbm, gen, back_w) -> list:
+    """B1, B2 and B3 on one batch of test clouds; returns per-sample metric rows."""
+    ec = cfg["eval"]
+    meta = sample_meta(cell, ii, b)
+    x, m = b["x"], b["mask"]
+    # B1: classical fit of every family + geometric AIC
+    cands, sel = classical.fit_classical(x, m, ec["classical_steps"], back_w, gen, restarts=ec["classical_restarts"])
+    ci = sel["cand_index"].tolist()
+    b1 = ([cands[c]["fi"] for c in ci], [cands[c]["raw"][i] for i, c in enumerate(ci)])
+    amb = ambiguity(cands, b["family"])
+    # B2: features + GBM, then the classical fit of the predicted family (reusing B1's per-family fits)
+    pred = gbm.predict(features_gbm.features_batch(x, m))
+    b2 = ([int(p) for p in pred], [best_cand_for(cands, int(p), i, m)["raw"] for i, p in enumerate(pred)])
+    # B3: null (blob), always-circle, random shape
+    n = len(ii)
+    b3a = ([INDEX["blob"]] * n, [best_cand_for(cands, INDEX["blob"], i, m)["raw"] for i in range(n)])
+    b3b = ([INDEX["arc"]] * n, [best_cand_for(cands, INDEX["arc"], i, m)["raw"] for i in range(n)])
+    rnd = trivial.random_shapes(n, gen, x.device)
+    b3c = ([fi for fi, _ in rnd], [_random_raw(fi, p) for fi, p in rnd])
+    rows = []
+    for name, (fam, raws) in {"B1_classical": b1, "B2_features": b2, "B3a_null": b3a, "B3b_circle": b3b, "B3c_random": b3c}.items():
+        for k, (mm, r) in enumerate(zip(meta, shape_metrics(fam, raws, b))):
+            rows.append({"system": name, **mm, **r, "prob_pred": np.nan, "ambiguous": bool(amb[k])})
     return rows
 
 

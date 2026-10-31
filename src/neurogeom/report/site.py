@@ -57,7 +57,7 @@ pre { white-space:pre-wrap; font-size:11px; background:var(--panel); padding:8px
   <h1>Neural geometry shape fitter: explorer</h1>
   <p>Top-3 PCA point clouds of real activations, controls and synthetic test shapes, with the shape fitted by a network trained only on synthetic shapes.
   Points are coloured by concept value. Red marks the fitted shape. Results that miss expectations are shown too.
-  <a href="https://github.com/BurnyCoder/fitting-geometrical-shapes-in-llm-mechanistic-interpretability">Code, paper and reports</a>.</p>
+  <a href="https://github.com/BurnyCoder/geometrical-shape-fitting-in-llm-mechanistic-interpretability">Code, paper and reports</a>.</p>
 </header>
 <main>
   <nav id="nav"></nav>

@@ -1,0 +1,24 @@
+\begin{table}[t]
+\centering\scriptsize
+\caption{The 13 shape families. Local shapes are posed by a center $c$ and a frame $R=(e_1,e_2,e_3)$ unless stated. Canonical forms make the reported parameters unique.}
+\label{tab:families}
+\begin{tabular}{llll}
+\toprule
+Family & Local shape & Canonical unique parameters & Anchor \\
+\midrule
+blob & $\mathrm{diag}(\sigma_1,\sigma_2,\sigma_3)z$, $z\sim\mathcal{N}(0,I)$ & center, axes (signs fixed), $\sigma_1\ge\sigma_2\ge\sigma_3$ & null class \\
+clusters & $k\in\{2..6\}$ centroids + spread & centroids sorted lexicographically, spread & true/false \citep{marks2024truth} \\
+polytope & regular template (6 subtypes) & subtype, center, circumradius, sorted vertices & superposition \citep{elhage2022tms} \\
+line & $tLe_1$, $t\in[-1,1]$ & endpoints & temperature, age \citep{bhalla2026sae} \\
+arc & $r(\cos t\,e_1+\sin t\,e_2)$, $|t|\le\Delta/2$ & center, normal, $r$, extent (closed if $\Delta\approx2\pi$) & days, months \citep{engels2025notall} \\
+ellipse & $a\cos t\,e_1+b\sin t\,e_2$ & center, normal, major axis, $a\ge b$ & distorted circle \\
+helix & $r\cos t\,e_1+r\sin t\,e_2+\frac{pt}{2\pi}e_3$ & axis, $r$, signed pitch $p$, turns, phase & GPT-2 $W_{pos}$ \citep{yedidia2023helix} \\
+ringing & $\sum_{k=1}^3 a_k\cos(k\pi s)e_k$ & $a_1,a_2>0$, $a_3$, frame & PCA artifact \citep{novembre2008horseshoe} \\
+disc & $\rho(a\cos t\,e_1+b\sin t\,e_2)$ & center, normal, $a\ge b$ & pizza \citep{zhong2023clock} \\
+sphere & cap of half-angle $\alpha$ around $e_3$ & center, $r$, pole, $\alpha$ & cities \citep{tiblias2025smds} \\
+paraboloid & $z=\frac12(\kappa_1x^2+\kappa_2y^2)$, $|\kappa_2|\le\kappa_1$ & frame, $\kappa_1,\kappa_2$, patch radius & colors \citep{bhalla2026sae} \\
+cone & frustum $r(h)=r_0+gh$ around $e_3$ & axis, bottom/top radius, height & anisotropy \citep{ethayarajh2019contextual} \\
+torus & $((R+r\cos v)\cos u,(R+r\cos v)\sin u,r\sin v)$ & center, axis, $R$, $r$ & grid cells \citep{gardner2022torus} \\
+\bottomrule
+\end{tabular}
+\end{table}

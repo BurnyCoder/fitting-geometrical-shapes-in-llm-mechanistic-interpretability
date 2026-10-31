@@ -16,7 +16,7 @@ from neurogeom.logging_utils import get_logger
 
 log = get_logger(__name__)
 COLLECTION_TITLE = "Fitting geometric shapes to neural geometry"
-GITHUB = "https://github.com/BurnyCoder/fitting-geometrical-shapes-in-llm-mechanistic-interpretability"
+GITHUB = "https://github.com/BurnyCoder/geometrical-shape-fitting-in-llm-mechanistic-interpretability"
 
 
 def model_card(run: str, summary: dict, analysis: dict | None) -> str:
