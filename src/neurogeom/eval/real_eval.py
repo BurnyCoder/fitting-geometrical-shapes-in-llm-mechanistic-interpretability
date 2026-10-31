@@ -139,7 +139,11 @@ def eval_dataset(model, path: Path, cfg: dict, temperature: float, device, thres
             xg, mg = _pad_batch([yg], device)
             c2.append(NAMES[fit_batch(model, xg, mg, cfg["infer"], temperature)[0].family])
         out["C2_matched_gaussian"] = pd.Series(c2).value_counts(normalize=True).to_dict()
-        out["helix_claim_supported"] = bool(out["p_helix_over_ringing"] >= 3 and out["heldout"]["helix"] < out["heldout"]["ringing"])
+        # preregistered rule: a helix claim needs p(helix)/p(ringing) >= 3 AND a lower held-out residual than ringing
+        helix_pref = bool(out["p_helix_over_ringing"] >= 3 and out["heldout"]["helix"] < out["heldout"]["ringing"])
+        out["helix_vs_ringing"] = {"p_ratio": out["p_helix_over_ringing"], "heldout_helix": out["heldout"]["helix"],
+                                   "heldout_ringing": out["heldout"]["ringing"], "helix_preferred": helix_pref}
+        out["helix_claim_supported"] = bool(out["family"] == "helix" and helix_pref) if out["family"] == "helix" else None
     # visualisation payload: normalised points (in PCA coordinates) + dense samples of the fitted shape
     f = FAMILIES[fit.family]
     pts, w = f.dense(f.decode(fit.raw.unsqueeze(0).to(device)), {"curve": 400, "surface_side": 30, "blob": 256})

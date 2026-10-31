@@ -72,7 +72,10 @@ def fit_all_families(x: torch.Tensor, mask: torch.Tensor, steps: int, back_w: fl
     for fi in (families if families is not None else range(len(FAMILIES))):
         f = FAMILIES[fi]
         if f.name == "clusters":
+            n_min = int(mask.sum(-1).min())
             for j, k in enumerate(K_VALUES):
+                if k >= n_min:   # need more points than clusters (k-means init draws k distinct points)
+                    continue
                 cent = kmeans(x, mask, k, gen=gen)
                 p = {"k_idx": torch.full((b,), j, device=device), "centroids": torch.zeros(b, max(K_VALUES), 3, device=device),
                      "spread": torch.full((b,), 0.05, device=device)}
