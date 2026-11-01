@@ -1,8 +1,9 @@
 """Upload trained fitters to the Hugging Face Hub and add them to the project collection.
 
 Global context: user requirement "upload models to Hugging Face into a collection; one collection for
-this research". Each run's checkpoint (final.pt: state dict + full config) and its results summary are
-uploaded with a model card generated from results files. Uses huggingface_hub's HfApi
+this research". Each run's checkpoint (final.pt: state dict + full config), its results summary and its run logs
+(training, evaluation, and activation extraction with every logged LLM prompt) are uploaded with a model card
+generated from results files. Uses huggingface_hub's HfApi
 (https://huggingface.co/docs/huggingface_hub/guides/upload, .../guides/collections).
 """
 
@@ -34,7 +35,9 @@ This is a Set Transformer trained **only on synthetic shapes**. Its input is a 3
 
 - Code, preregistration and reports: {GITHUB}
 - Paper: `paper.pdf` in this repository
+- Run logs (training, evaluation, activation extraction with every LLM prompt): `logs/` in this repository
 - Interactive explorer of real and synthetic fits: {PAGES}
+- License: MIT ({GITHUB}/blob/main/LICENSE)
 
 ## Results (generated from the results files)
 
@@ -78,6 +81,10 @@ def upload_run(cfg: dict, repo_id: str) -> str:
               res / "real" / "real_summary.csv", res / "real" / "real_results.json"]:
         if p.exists():
             api.upload_file(path_or_fileobj=str(p), path_in_repo=f"results/{p.name}", repo_id=repo_id)
+    logs = REPO_ROOT / "logs"
+    if logs.exists():   # this run's logs plus the shared extraction and B2-training logs; smoke and LaTeX logs are left out
+        api.upload_folder(folder_path=str(logs), path_in_repo="logs", repo_id=repo_id,
+                          allow_patterns=[f"*{cfg['run_name']}*", "*extract*", "*gbm*", "download_models.txt"])
     pdf = REPO_ROOT / "paper" / "main.pdf"
     if pdf.exists():
         api.upload_file(path_or_fileobj=str(pdf), path_in_repo="paper.pdf", repo_id=repo_id)
