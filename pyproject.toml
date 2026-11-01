@@ -3,6 +3,8 @@ name = "neurogeom"
 version = "0.1.0"
 description = "Learned shape-type + parameter fitting for 3D (top-3 PCA) point clouds of neural-network activations"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Libor Burian (BurnyCoder)", email = "happymancz@email.cz" }
 ]

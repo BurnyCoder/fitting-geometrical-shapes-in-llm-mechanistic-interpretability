@@ -34,9 +34,9 @@ R3_tms_n8,8,3,polytope,0d,0d,"['polytope', 'clusters']",True,0.9959244728088379,
 R4_llama_counting,150,4096,ringing,1d,1d,['helix'],True,0.7350236177444458,0.6908622505825455,False,False,ringing,1d
 R4b_pythia_counting,150,1024,ringing,1d,1d,['helix'],False,0.8620203733444214,0.7491623311135689,False,False,ringing,1d
 R5a_llama_weekdays,49,4096,helix,1d,1d,['arc'],True,0.8270775079727173,0.6587066978924345,True,False,helix,1d
-R5a_llama_weekdays_means,7,4096,sphere,2d,1d,['arc'],True,0.39966869354248047,0.7813171642421459,True,False,helix,1d
+R5a_llama_weekdays_means,7,4096,sphere,2d,1d,['arc'],False,0.39966869354248047,0.7813171642421459,True,False,helix,1d
 R5b_llama_months,144,4096,helix,1d,1d,['arc'],True,0.703027606010437,0.5488783346494348,True,False,helix,1d
-R5b_llama_months_means,12,4096,helix,1d,1d,['arc'],True,0.40353456139564514,0.5997272931541041,True,False,helix,1d
+R5b_llama_months_means,12,4096,helix,1d,1d,['arc'],False,0.40353456139564514,0.5997272931541041,True,False,helix,1d
 R5c_llama_days_time,336,4096,ringing,1d,1d,['arc'],False,0.8299200534820557,0.5796628332511563,True,False,ringing,1d
 R6_llama_years,199,4096,cone,2d,1d,['helix'],True,0.33779674768447876,0.2466855476162086,True,False,paraboloid,2d
 R7_llama_colors,900,4096,cone,2d,2d,['paraboloid'],True,0.7855064272880554,0.659333770934792,True,False,cone,2d

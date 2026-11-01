@@ -8,7 +8,7 @@ and system) plus probabilities for calibration analysis. Systems:
   A5_hybrid     refined top-k candidates, geometric AIC among plausible classes
   B1_classical  classical fit of every family + geometric AIC          (subset)
   B2_features   hand-crafted features + gradient boosting, then B1 fit  (subset)
-  B3a_null      always blob;  B3b_circle  always circle;  B3c_random  random shape   (subset)
+  B3a_null      always blob;  B3b_circle  always arc (B1's best arc fit, possibly partial);  B3c_random  random shape   (subset)
 Baselines run on the first `baseline_per_cell` samples per family of every cell (classical fitting of
 13 families with multi-start is ~60x the cost of the method); all paired comparisons use that subset.
 """

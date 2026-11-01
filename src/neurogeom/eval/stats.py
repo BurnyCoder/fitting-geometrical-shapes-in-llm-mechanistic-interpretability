@@ -111,7 +111,7 @@ def fit_temperature(logits: torch.Tensor, labels: torch.Tensor) -> float:
         loss.backward()
         return loss
     opt.step(closure)
-    return float(log_t.exp())
+    return float(log_t.detach().exp())
 
 
 def binom_ci(k: int, n: int, alpha: float = 0.05) -> tuple[float, float]:

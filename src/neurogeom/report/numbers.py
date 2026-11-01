@@ -18,6 +18,7 @@ from pathlib import Path
 from neurogeom.config import REPO_ROOT
 from neurogeom.eval.analysis import run_analysis
 from neurogeom.logging_utils import get_logger
+from neurogeom.realdata.common import is_prereg
 from neurogeom.report import figures
 from neurogeom.shapes.registry import NAMES
 
@@ -58,10 +59,10 @@ def hypotheses_table(h: dict, real: dict | None) -> str:
     if real:
         h3, h4 = real["H3"], real["H4"]
         ci = h3["ci"] or [float("nan")] * 2
-        rows.append(f"| H3 | Coarse-label agreement with literature on real datasets | {h3['agree']}/{h3['n']} = {100 * h3['rate']:.0f}% "
+        rows.append(f"| H3 | Coarse-label agreement (subsample majority) with literature on preregistered real datasets | {h3['agree']}/{h3['n']} = {100 * h3['rate']:.0f}% "
                     f"[{100 * ci[0]:.0f}, {100 * ci[1]:.0f}] (exact binomial) | perm. p = {h3['p_permutation']:.3g} | {h3['n']} | "
                     f"{'supported' if h3['supported'] else 'not supported'} |")
-        rows.append(f"| H4 | Controls: matched Gaussians -> blob; ordinal processes -> ringing (not helix) | blob rate "
+        rows.append(f"| H4 | Controls: matched Gaussians -> blob (mean over {_n_real(h4)} real datasets); ordinal processes -> ringing (not helix) | blob rate "
                     f"{_pct(h4['C2_blob_rate_mean'])}; ringing {_pct(h4['C1_ringing_rate'])} vs helix {_pct(h4['C1_helix_rate'])} | - | - | "
                     f"{'supported' if h4['supported'] else 'not supported'} |")
     return "\n".join(rows)
@@ -98,12 +99,22 @@ def models_table(results_root: Path) -> str:
 
 
 def fmt_p(p: float) -> str:
-    """p-value for display; below 1e-16 the normal approximation and float precision carry no information."""
+    """p-value for display; below 1e-16 the normal approximation (H1: from the paired-bootstrap SE) and float precision
+    (H2, H5b: Wilcoxon signed-rank) carry no information, so the value is shown as a floor."""
     return "< 1e-16" if p < 1e-16 else f"{p:.2g}"
 
 
 def _pct(x):
     return "n/a" if x is None else f"{100 * x:.0f}%"
+
+
+def _n_real(h4: dict) -> int:
+    """Number of real (R*) datasets whose matched-Gaussian blob rates are averaged in H4 (exploratory ones included)."""
+    return sum(k.startswith("R") for k in h4["C2_per_dataset"])
+
+
+def _helix_rule_ids(real: dict, accepted: bool) -> list[str]:
+    return [k for k, v in real.get("helix_rule", {}).items() if v == accepted]
 
 
 def real_table(results: list[dict]) -> str:
@@ -121,7 +132,7 @@ def real_table(results: list[dict]) -> str:
         flags = ", ".join(f for f, on in (("gap<1.5", r["gap_flag"]), ("OOD", r["ood"])) if on) or "-"
         exp = f"{m.get('expected_coarse') or '-'} / {', '.join(m.get('expected_fine') or ['-'])}"
         c2 = r.get("C2_matched_gaussian", {}).get("blob")
-        rows.append(f"| `{r['id']}`{' (prereg)' if m.get('prereg') else ''} | {m.get('model', m.get('source', ''))[:40]} / {m.get('layer', '-')} | "
+        rows.append(f"| `{r['id']}`{' (prereg)' if is_prereg(r) else ''} | {m.get('model', m.get('source', ''))[:40]} / {m.get('layer', '-')} | "
                     f"{r['N']} x {r['D']} | {100 * r['top3_explained']:.0f}% | {exp} | **{r['family']}** | {r['probs'][r['family']]:.2f} | "
                     f"{maj} ({100 * freq:.0f}%) | {hos} | {_pct(c2)} | {flags} |")
     return "\n".join(rows)
@@ -169,19 +180,31 @@ def headline(a: dict) -> str:
         out.append(f"- **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to {acc('A5_gaic')}.")
     c = a.get("calibration")
     if c:
-        out.append(f"- **Calibration:** temperature T = {c['temperature']:.3f} lowers ECE from {c['before']['ece']:.3f} to {c['after']['ece']:.3f} "
-                   f"and NLL from {c['before']['nll']:.3f} to {c['after']['nll']:.3f}.")
+        out.append(f"- **Calibration:** temperature T = {c['temperature']:.3f} (fitted on the validation stream) lowers ECE from {c['before']['ece']:.3f} "
+                   f"to {c['after']['ece']:.3f} and NLL from {c['before']['nll']:.3f} to {c['after']['nll']:.3f}"
+                   + (f"; the NLL-optimal T on the test set itself is {c['t_test_optimal']:.3f}." if "t_test_optimal" in c else "."))
     r = a.get("real")
     if r:
         h3, h4 = r["H3"], r["H4"]
-        out.append(f"- **H3, real activations:** the coarse shape class (point set / curve / surface / blob) agrees with the literature on "
-                   f"{h3['agree']}/{h3['n']} preregistered datasets (exact 95% CI {100 * h3['ci'][0]:.0f}-{100 * h3['ci'][1]:.0f}%), "
-                   f"label-permutation p = {h3['p_permutation']:.3g}: {'supported' if h3['supported'] else 'not supported'}.")
+        full = (f" Post hoc, with the full-cloud label instead of the subsample majority: {h3['agree_full_cloud_posthoc']}/{h3['n']}."
+                if "agree_full_cloud_posthoc" in h3 else "")
+        out.append(f"- **H3, real activations:** the coarse shape class (point set / curve / surface / blob; majority label over random 80% "
+                   f"subsamples) agrees with the literature on {h3['agree']}/{h3['n']} preregistered datasets (exact 95% CI "
+                   f"{100 * h3['ci'][0]:.0f}-{100 * h3['ci'][1]:.0f}%), label-permutation p = {h3['p_permutation']:.3g}: "
+                   f"{'supported' if h3['supported'] else 'not supported'}.{full}")
         bp = h4.get("C1_by_process_posthoc", {})
         gp = f" Post hoc: smooth Gaussian processes alone are labelled helix in {_pct(bp['gp']['helix'])}, random walks in {_pct(bp['walk']['helix'])}." if "gp" in bp and "walk" in bp else ""
-        out.append(f"- **H4, controls:** matched-covariance Gaussians are labelled blob {_pct(h4['C2_blob_rate_mean'])} of the time; ordinal-process "
-                   f"controls ringing {_pct(h4['C1_ringing_rate'])} vs helix {_pct(h4['C1_helix_rate'])}: "
-                   f"{'supported' if h4['supported'] else 'not supported'}.{gp}")
+        out.append(f"- **H4, controls:** matched-covariance Gaussians are labelled blob {_pct(h4['C2_blob_rate_mean'])} of the time (mean over all "
+                   f"{_n_real(h4)} real datasets, exploratory ones included); ordinal-process controls ringing {_pct(h4['C1_ringing_rate'])} vs "
+                   f"helix {_pct(h4['C1_helix_rate'])}: {'supported' if h4['supported'] else 'not supported'}.{gp}")
+        acc_ids, rej_ids = _helix_rule_ids(r, True), _helix_rule_ids(r, False)
+        wrong = [i for i in acc_ids if i in r.get("helix_rule_non_helix_expected", [])]
+        if acc_ids or rej_ids:
+            out.append(f"- **Helix rule (post hoc, every full-cloud helix fit with held-out folds):** the preregistered two-part rule rejects the "
+                       f"helix claim for {', '.join(f'`{i}`' for i in rej_ids) or 'none'} and accepts it for "
+                       f"{', '.join(f'`{i}`' for i in acc_ids) or 'none'}"
+                       + ((", all of which" if wrong == acc_ids else f"; of these, {', '.join(f'`{i}`' for i in wrong)}")
+                          + " are expected to be non-helix shapes, so the rule is necessary, not sufficient." if wrong else "."))
     return "\n".join(out)
 
 
@@ -260,6 +283,11 @@ def tex_macros(analysis: dict) -> str:
         mac("hfourBlob", _pct(h4["C2_blob_rate_mean"]).replace("%", "\\%"))
         mac("hfourRing", _pct(h4["C1_ringing_rate"]).replace("%", "\\%"))
         mac("hfourHelix", _pct(h4["C1_helix_rate"]).replace("%", "\\%"))
+        mac("hthreeAgreeFull", str(h3.get("agree_full_cloud_posthoc", "n/a")))
+        mac("hfourNreal", str(_n_real(h4)))
+        tt = lambda ids: ", ".join(r"\texttt{" + i.replace("_", r"\_") + "}" for i in ids) or "none"
+        mac("helixRuleAccepted", tt(_helix_rule_ids(analysis["real"], True)))
+        mac("helixRuleRejected", tt(_helix_rule_ids(analysis["real"], False)))
         bp = h4.get("C1_by_process_posthoc", {})   # post-hoc split of C1 into Gaussian processes and random walks
         for k, tag in (("gp", "Gp"), ("walk", "Walk")):
             if k in bp:
@@ -268,6 +296,8 @@ def tex_macros(analysis: dict) -> str:
     cal = analysis.get("calibration")
     if cal:
         mac("temperature", f"{cal['temperature']:.3f}")
+        if "t_test_optimal" in cal:
+            mac("temperatureTest", f"{cal['t_test_optimal']:.3f}")
         mac("eceBefore", f"{cal['before']['ece']:.3f}")
         mac("eceAfter", f"{cal['after']['ece']:.3f}")
         mac("nllBefore", f"{cal['before']['nll']:.3f}")

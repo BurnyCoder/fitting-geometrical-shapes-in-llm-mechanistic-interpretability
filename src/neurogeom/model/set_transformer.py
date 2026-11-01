@@ -2,7 +2,8 @@
 
 Global context: the input is an unordered point cloud of 5..1024 points, so the encoder must be
 invariant to point order and to padding. The Set Transformer blocks follow
-juho-lee/set_transformer/modules.py (MIT license, https://github.com/juho-lee/set_transformer;
+juho-lee/set_transformer/modules.py (MIT license, Copyright (c) 2020 Juho Lee, reproduced in LICENSE;
+https://github.com/juho-lee/set_transformer;
 Lee et al., "Set Transformer", ICML 2019, arXiv:1810.00825) with two changes:
   1. a key-padding mask so batches can mix cloud sizes (padded points never receive attention);
   2. attention via torch.nn.functional.scaled_dot_product_attention with the standard per-head

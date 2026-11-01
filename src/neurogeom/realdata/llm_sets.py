@@ -128,7 +128,7 @@ def llama_layer5(cfg: dict, random_init: bool = False) -> None:
         if not random_init:  # class means: 7 / 12 points, as in the original circle plots
             u = sorted(set(targets), key=targets.index)
             means = np.stack([x[[t == v for t in targets]].mean(0) for v in u])
-            save_cloud(cfg, did + "_means", means, u, {**meta, "source": meta["source"] + " (mean per class)"})
+            save_cloud(cfg, did + "_means", means, u, {**meta, "source": meta["source"] + " (mean per class)", "prereg": False})
     del model
     free_cuda()
 

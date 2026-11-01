@@ -42,6 +42,13 @@ def load_cloud(path: Path) -> tuple[np.ndarray, np.ndarray, dict]:
     return z["X"], z["labels"], json.loads(str(z["meta"]))
 
 
+def is_prereg(r: dict) -> bool:
+    """Whether a real-data result belongs to the preregistered analysis: its meta flag, minus the class-mean views
+    (`*_means`), which reports/deviations.md lists as exploratory although clouds extracted before the fix inherited
+    the flag. Single source of truth for analysis (H3), tables and the summary CSV."""
+    return bool(r["meta"].get("prereg")) and not r["id"].endswith("_means")
+
+
 def log_prompts(name: str, prompts: list[str]) -> None:
     """Every prompt sent to an LLM is logged in full (user requirement); no text is generated here,
     only hidden states are read, so there are no LLM outputs to log besides activation statistics."""

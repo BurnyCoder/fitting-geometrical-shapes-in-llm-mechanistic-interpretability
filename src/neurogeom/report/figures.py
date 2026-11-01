@@ -28,7 +28,7 @@ SYSTEM_ORDER = ["method", "method_subset", "A3_norefine", "A5_gaic", "A5_hybrid"
 SYSTEM_LABEL = {"method": "Method (network + refinement)", "method_subset": "Method, baseline subset", "A3_norefine": "A3: no refinement", "A5_gaic": "A5: G-AIC selection",
                 "A5_hybrid": "A5: hybrid selection", "A0_reference": "A0: method, ablation budget", "A1_paramloss": "A1: parameter-space loss", "A2_noresidual": "A2: no residual term",
                 "A4_deepsets": "A4: DeepSets encoder", "A6_noembed": "A6: no R^D augmentation", "B1_classical": "B1: classical fit + G-AIC",
-                "B2_features": "B2: features + boosting", "B3a_null": "B3a: always blob", "B3b_circle": "B3b: always circle",
+                "B2_features": "B2: features + boosting", "B3a_null": "B3a: always blob", "B3b_circle": "B3b: always arc (B1 arc fit)",
                 "B3c_random": "B3c: random shape"}
 
 

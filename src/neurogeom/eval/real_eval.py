@@ -27,7 +27,7 @@ from neurogeom.geometry.chamfer import nearest_dist
 from neurogeom.geometry.preprocess import fit_frame
 from neurogeom.infer.predict import describe_fit, fit_batch
 from neurogeom.logging_utils import get_logger
-from neurogeom.realdata.common import load_cloud, real_dir
+from neurogeom.realdata.common import is_prereg, load_cloud, real_dir
 from neurogeom.realdata.controls import matched_gaussian
 from neurogeom.shapes.registry import COARSE, COARSE_NAMES, FAMILIES, INDEX, NAMES
 
@@ -174,11 +174,16 @@ def run_real_eval(cfg: dict, light_controls: bool = True) -> list[dict]:
         json.dump(r.pop("viz"), open(out_dir / "viz" / f"{p.stem}.json", "w"))
         results.append(r)
     json.dump(results, open(out_dir / "real_results.json", "w"), indent=2, default=str)
+    write_summary(results, out_dir)
+    log.info("eval-real done: %d datasets", len(results))
+    return results
+
+
+def write_summary(results: list[dict], out_dir: Path) -> None:
+    """One CSV row per dataset (real_summary.csv) from the stored results; rerunnable without refitting."""
     rows = [{"id": r["id"], "N": r["N"], "D": r["D"], "family": r["family"], "coarse": r["coarse"],
              "expected_coarse": r["meta"].get("expected_coarse"), "expected_fine": r["meta"].get("expected_fine"),
-             "prereg": r["meta"].get("prereg"), "p_selected": r["probs"][r["family"]], "top3_explained": r["top3_explained"],
+             "prereg": is_prereg(r), "p_selected": r["probs"][r["family"]], "top3_explained": r["top3_explained"],
              "gap_flag": r["gap_flag"], "ood": r["ood"], "stability_majority": r.get("stability", {}).get("fine_majority"),
              "stability_coarse_majority": r.get("stability", {}).get("coarse_majority")} for r in results]
     pd.DataFrame(rows).to_csv(out_dir / "real_summary.csv", index=False)
-    log.info("eval-real done: %d datasets", len(results))
-    return results

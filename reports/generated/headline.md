@@ -1,9 +1,10 @@
 - **Synthetic test set (39,000 clouds, 13 families):** the method picks the correct family in 87.9% [87.6, 88.2] of clouds; median Chamfer distance to the ground-truth shape 0.156 (RMS-radius units).
 - **Same 3,120 clouds for every system:** method 87.4% [86.2, 88.5], B2 features + boosting 64.5% [62.8, 66.2], B1 classical fit + geometric AIC 52.2% [50.6, 54.0], trivial baselines 7.7-7.9%.
-- **H1** (macro-F1 method - B1): 0.3741 [0.3579, 0.3903], Holm p < 1e-16: supported.
+- **H1** (macro-F1 method - B1): 0.3741 [0.3572, 0.3905], Holm p < 1e-16: supported.
 - **H2** (median Chamfer method - B1): -0.0554 [-0.0645, -0.0462], Holm p < 1e-16: supported.
 - **H5b_refinement** (median Chamfer method - no refinement): -0.0033 [-0.0046, -0.0021], Holm p < 1e-16: supported.
 - **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to 64.6% [64.1, 65.1].
-- **Calibration:** temperature T = 0.772 lowers ECE from 0.044 to 0.022 and NLL from 0.397 to 0.373.
-- **H3, real activations:** the coarse shape class (point set / curve / surface / blob) agrees with the literature on 7/12 preregistered datasets (exact 95% CI 28-85%), label-permutation p = 0.125: not supported.
-- **H4, controls:** matched-covariance Gaussians are labelled blob 86% of the time; ordinal-process controls ringing 60% vs helix 40%: supported. Post hoc: smooth Gaussian processes alone are labelled helix in 80%, random walks in 0%.
+- **Calibration:** temperature T = 0.772 (fitted on the validation stream) lowers ECE from 0.044 to 0.022 and NLL from 0.397 to 0.373; the NLL-optimal T on the test set itself is 0.784.
+- **H3, real activations:** the coarse shape class (point set / curve / surface / blob; majority label over random 80% subsamples) agrees with the literature on 7/12 preregistered datasets (exact 95% CI 28-85%), label-permutation p = 0.125: not supported. Post hoc, with the full-cloud label instead of the subsample majority: 8/12.
+- **H4, controls:** matched-covariance Gaussians are labelled blob 86% of the time (mean over all 17 real datasets, exploratory ones included); ordinal-process controls ringing 60% vs helix 40%: supported. Post hoc: smooth Gaussian processes alone are labelled helix in 80%, random walks in 0%.
+- **Helix rule (post hoc, every full-cloud helix fit with held-out folds):** the preregistered two-part rule rejects the helix claim for `C1_gp_0` and accepts it for `R2_grokking_WE`, `R5a_llama_weekdays`, `R5b_llama_months`, `R5b_llama_months_means`, all of which are expected to be non-helix shapes, so the rule is necessary, not sufficient.
