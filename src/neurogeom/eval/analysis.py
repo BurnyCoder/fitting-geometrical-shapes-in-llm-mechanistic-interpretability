@@ -15,10 +15,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import torch
 
-from neurogeom.eval.stats import (binom_ci, bootstrap_ci, bootstrap_ci_pairs, ece, holm, macro_f1, paired_bootstrap,
+from neurogeom.eval.stats import (binom_ci, bootstrap_ci, bootstrap_ci_pairs, ece, fit_temperature, holm, macro_f1, paired_bootstrap,
                                   paired_bootstrap_f1, wilcoxon_p)
 from neurogeom.logging_utils import get_logger
+from neurogeom.realdata.common import is_prereg
 
 log = get_logger(__name__)
 
@@ -27,7 +29,7 @@ def system_summary(df: pd.DataFrame, reps: int) -> dict:
     out = {}
     for sysname, g in df.groupby("system"):
         acc = bootstrap_ci(g.correct.astype(float), reps=reps)
-        f1 = bootstrap_ci_pairs(g.family_true, g.family_pred, macro_f1, reps=min(reps, 500))
+        f1 = bootstrap_ci_pairs(g.family_true, g.family_pred, macro_f1, reps=reps)   # same replicate count as every CI (prereg Sec. 5.2)
         cd = bootstrap_ci(g.chamfer.values, stat=np.median, reps=reps)
         out[sysname] = {
             "n": int(len(g)), "fine_acc": acc, "macro_f1": f1, "coarse_acc": bootstrap_ci(g.coarse_correct.astype(float), reps=reps),
@@ -60,7 +62,7 @@ def paired(df: pd.DataFrame, a: str, b: str, reps: int) -> dict | None:
     if len(common) == 0:
         return None
     ga, gb = ga.loc[common], gb.loc[common]
-    f1 = paired_bootstrap_f1(ga.family_true.values, ga.family_pred.values, gb.family_pred.values, reps=min(reps, 1000))
+    f1 = paired_bootstrap_f1(ga.family_true.values, ga.family_pred.values, gb.family_pred.values, reps=reps)
     cd = paired_bootstrap(ga.chamfer.values, gb.chamfer.values, stat=np.median, reps=reps)
     return {"n": int(len(common)), "macro_f1_diff": f1, "median_chamfer_diff": cd,
             "fine_acc_diff": paired_bootstrap(ga.correct.astype(float).values, gb.correct.astype(float).values, reps=reps),
@@ -104,7 +106,9 @@ def hypotheses_synth(df: pd.DataFrame, reps: int, ablation_frames: dict) -> dict
 
 def calibration(res_dir: Path) -> dict | None:
     """ECE (15 bins) and NLL of the classifier on the synthetic test set before (T = 1) and after temperature scaling
-    (preregistration Sec. 5.4). probs.npz holds p = softmax(l / T), so l = T log p up to a per-sample constant."""
+    (preregistration Sec. 5.4). probs.npz holds p = softmax(l / T), so l = T log p up to a per-sample constant.
+    `t_test_optimal` is the temperature that would minimise NLL on the test set itself (a check of how well the
+    validation-fitted T transfers; it is never used for selection)."""
     pz, mz = res_dir / "synth" / "probs.npz", res_dir / "synth" / "meta.json"
     if not (pz.exists() and mz.exists()):
         return None
@@ -116,12 +120,12 @@ def calibration(res_dir: Path) -> dict | None:
         q = np.exp(lg - lg.max(1, keepdims=True))
         q /= q.sum(1, keepdims=True)
         return {"ece": ece(q, y), "nll": float(-np.log(q[np.arange(len(y)), y] + 1e-12).mean())}
-    return {"temperature": t, "n": int(len(y)), "before": scored(1.0), "after": scored(t)}
+    t_test = fit_temperature(torch.as_tensor(logits), torch.as_tensor(y, dtype=torch.long))   # same LBFGS fitter as on `val`
+    return {"temperature": t, "t_test_optimal": t_test, "n": int(len(y)), "before": scored(1.0), "after": scored(t)}
 
 
 def hypotheses_real(results: list[dict], seed: int = 0) -> dict:
-    pre = [r for r in results if r["id"].startswith("R") and r["meta"].get("prereg") and r["meta"].get("expected_coarse")
-           and not r["id"].endswith("_means")]
+    pre = [r for r in results if r["id"].startswith("R") and is_prereg(r) and r["meta"].get("expected_coarse")]
     lab = lambda r: r.get("stability", {}).get("coarse_majority", r["coarse"])
     agree = [lab(r) == r["meta"]["expected_coarse"] for r in pre]
     k, n = int(sum(agree)), len(agree)
@@ -131,6 +135,8 @@ def hypotheses_real(results: list[dict], seed: int = 0) -> dict:
     null = [int((rng.permutation(preds) == exp).sum()) for _ in range(10000)]
     p_perm = float((np.array(null) >= k).mean())
     h3 = {"agree": k, "n": n, "rate": k / max(n, 1), "ci": binom_ci(k, n) if n else None, "p_permutation": p_perm,
+          # post hoc (not preregistered): the same count with the full-cloud label instead of the subsample majority
+          "agree_full_cloud_posthoc": int(sum(r["coarse"] == r["meta"]["expected_coarse"] for r in pre)),
           "supported": n > 0 and k / n >= 0.5 and p_perm < 0.05,
           "per_dataset": {r["id"]: {"predicted_coarse": lab(r), "expected_coarse": r["meta"]["expected_coarse"],
                                     "predicted_fine": r.get("stability", {}).get("fine_majority", r["family"]),
@@ -147,7 +153,11 @@ def hypotheses_real(results: list[dict], seed: int = 0) -> dict:
           "C1_ringing_rate": ring, "C1_helix_rate": helix, "C1_labels": {r["id"]: r["family"] for r in c1}, "C1_by_process_posthoc": by_proc,
           "supported": blob_rate is not None and blob_rate >= 0.8 and ring is not None and ring > helix}
     c3 = {r["id"]: r["family"] for r in results if r["id"].startswith("C3_")}
-    return {"H3": h3, "H4": h4, "C3_random_init": c3}
+    # preregistered two-part helix rule (p(helix)/p(ringing) >= 3 and lower held-out residual than ringing), recorded for
+    # every full-cloud helix fit that had held-out folds: True = helix claim accepted, False = rejected
+    rule = {r["id"]: bool(r["helix_claim_supported"]) for r in results if r.get("helix_claim_supported") is not None}
+    non_helix = [k for k in rule if "helix" not in (next(r for r in results if r["id"] == k)["meta"].get("expected_fine") or ["helix"])]
+    return {"H3": h3, "H4": h4, "C3_random_init": c3, "helix_rule": rule, "helix_rule_non_helix_expected": non_helix}
 
 
 def run_analysis(cfg: dict, ablation_runs: dict | None = None) -> dict:
@@ -173,7 +183,7 @@ def run_analysis(cfg: dict, ablation_runs: dict | None = None) -> dict:
     if "ambiguous" in df:
         ids = set(df[(df.system == "B1_classical") & (df.ambiguous == True)].sample_id)  # noqa: E712
         sub = df[(df.system != "method_subset") & ~df.sample_id.isin(ids) & df.sample_id.isin(base_ids)]
-        out["systems_unambiguous_subset"] = system_summary(sub, min(reps, 500))
+        out["systems_unambiguous_subset"] = system_summary(sub, reps)
         out["ambiguous_fraction"] = float(len(ids) / max(1, (df.system == "B1_classical").sum()))
     rp = res_dir / "real" / "real_results.json"
     if rp.exists():
