@@ -36,7 +36,8 @@ def render_catalog(out: Path | None = None) -> Path:
         "",
         "This file is generated from `src/neurogeom/catalog/catalog.yaml` by `uv run python run.py catalog`; do not edit it by hand.",
         "",
-        "Starting point for the review: [Goodfire, *Neural geometry*](https://www.goodfire.com/research/neural-geometry). The review was run on 2026-10-31.",
+        "Starting point for the review: [Goodfire, *Neural geometry*](https://www.goodfire.com/research/neural-geometry). The review was run on 2026-10-31, "
+        "and every entry was re-checked against its source on 2026-11-01.",
         "",
         "**Column key**",
         "",
@@ -54,8 +55,9 @@ def render_catalog(out: Path | None = None) -> Path:
     lines += ["", "## Known confounder", ""]
     for c in cat["confounders"]:
         urls = ", ".join(f"<{c[k]}>" for k in ("url", "url2", "url3", "url4") if k in c)
-        lines.append(f"- **{c['shape']}**, which the fitter represents as `{c['vocab_class']}`. Any smoothly varying ordinal "
-                     f"variable produces this curve in PCA, so an arch or helix seen in the top PCs is not evidence of a curved representation on its own. "
+        lines.append(f"- **{c['shape']}**, which the fitter represents as `{c['vocab_class']}`. When the similarity between points decays "
+                     f"smoothly with an ordinal or latent variable (distance-decaying covariance, random walks, autocorrelated signals), PCA "
+                     f"produces this curve, so an arch or helix seen in the top PCs is not evidence of a curved representation on its own. "
                      f"Sources: {c['citation']}: {urls}")
     families = sorted({e["vocab_class"] for e in cat["entries"]})
     lines += ["", f"Fitter families with at least one empirical anchor in this catalog: {', '.join(f'`{f}`' for f in families)}.", ""]
@@ -66,15 +68,19 @@ def render_catalog(out: Path | None = None) -> Path:
 
 
 def render_catalog_tex(cat: dict) -> Path:
-    """LaTeX longtable-free compact catalog for the paper appendix (paper/generated/catalog_table.tex)."""
+    """Compact catalog for the paper appendix (paper/generated/catalog_table.tex): a longtable, so the catalog breaks
+    across pages instead of running off the bottom of one (needs \\usepackage{array,longtable} in main.tex)."""
     from neurogeom.report.numbers import _tex_escape
     out = REPO_ROOT / "paper" / "generated" / "catalog_table.tex"
     out.parent.mkdir(parents=True, exist_ok=True)
-    rows = [r"{\scriptsize", r"\begin{tabular}{p{3.2cm}p{3.2cm}p{3.3cm}p{1.5cm}p{1.4cm}p{3.2cm}}", r"\toprule",
-            r"\textbf{Shape} & \textbf{Concept} & \textbf{Model / layer} & \textbf{Top-3 PCA} & \textbf{Family} & \textbf{Source} \\", r"\midrule"]
+    col = lambda w: r">{\raggedright\arraybackslash}p{" + w + "}"
+    head = r"\textbf{Shape} & \textbf{Concept} & \textbf{Model / layer} & \textbf{Top-3 PCA} & \textbf{Family} & \textbf{Source} \\"
+    rows = [r"{\scriptsize", r"\begin{longtable}{" + "".join(col(w) for w in ("3.0cm", "2.8cm", "3.4cm", "2.6cm", "1.3cm", "2.6cm")) + "}",
+            r"\toprule", head, r"\midrule", r"\endhead"]
     for e in cat["entries"]:
+        src = r"\citet{" + e["bibkey"] + "}" if e.get("bibkey") else r"\href{" + e["url"] + "}{" + _tex_escape(e["citation"][:60]) + "}"
         rows.append(" & ".join(_tex_escape(str(v)) for v in (e["shape"], e["concept"], e["models"], e["top3_pca"], e["vocab_class"]))
-                    + r" & \href{" + e["url"] + "}{" + _tex_escape(e["citation"][:60]) + r"} \\")
-    rows += [r"\bottomrule", r"\end{tabular}}"]
+                    + " & " + src + r" \\")
+    rows += [r"\bottomrule", r"\end{longtable}}"]
     out.write_text("\n".join(rows) + "\n", encoding="utf-8")
     return out
