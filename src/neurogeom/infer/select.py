@@ -8,7 +8,8 @@ also an ellipse, a helix with tiny pitch is almost a circle). Selection rules (a
   distances, d the manifold dimension, p the number of shape parameters and eps^2 the noise variance,
   estimated from the most general candidate as eps^2 = J_gen / ((3 - d_gen) N - p_gen)
   (Kanatani 2004, "Uncertainty Modeling and Model Selection for Geometric Inference", IEEE TPAMI 26(10);
-  https://iim.cs.tut.ac.jp/member/kanatani/papers/acmodel.pdf). The volumetric blob has d = 3, J = 0.
+  doi:10.1109/TPAMI.2004.93; author copy https://iim.cs.tut.ac.jp/member/kanatani/papers/pamodel2.pdf). The volumetric blob has d = 3; its J is computed
+  like every other family's (refine.py).
 - hybrid: among candidates whose calibrated probability is >= 0.1 x the top probability, the lowest AIC_G.
 """
 

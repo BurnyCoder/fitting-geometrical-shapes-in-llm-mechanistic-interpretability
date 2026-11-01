@@ -4,10 +4,14 @@ Toy Models of Superposition W (R3), plus their controls.
 Global context:
 - R1: GPT-2 small learned positional embeddings W_pos (1024 x 768); rows 1..1023 lie on a helix in the
   top-3 PCs (Yedidia 2023, LessWrong qvWP3aBDBaqXvPNhS; row 0 is an outlier and is dropped as there).
-  Control: the same matrix at GPT-2's initialisation, N(0, 0.02^2) (Radford et al. 2019 init), -> blob.
+  Control: the same matrix at Hugging Face's GPT-2 initialisation, N(0, 0.02^2) (GPT2Config.initializer_range;
+  OpenAI's original code initialised wpe with stddev 0.01), -> blob.
 - R2: a 1-layer transformer trained on (a + b) mod 113 until it groks, with the hyperparameters of the
   TransformerLens grokking demo / Nanda et al. 2023 (arXiv:2301.05217): d_model 128, 4 heads, d_mlp 512,
-  no LayerNorm, 30% of pairs for training, full-batch AdamW lr 1e-3, weight decay 1.0, betas (0.9, 0.98).
+  no LayerNorm, 30% of pairs for training, full-batch AdamW lr 1e-3, weight decay 1.0, betas (0.9, 0.98);
+  25,000 epochs instead of the paper's 40,000. Test accuracy (extraction log) was 0.075 at epoch 17,500, 0.936 at
+  20,000 and 0.999 at 24,999, so training stops soon after grokking and the post-grokking cleanup of W_E may be
+  less complete than in the paper's model.
   The token embeddings W_E[0:113] form circles per key frequency (Nanda et al.; Zhong et al. 2023).
   Controls: the embeddings at initialisation and at the memorisation checkpoint (before grokking).
 - R3: Toy Models of Superposition (Elhage et al. 2022): x' = ReLU(W^T W x + b) with W in R^{3 x n},
@@ -38,7 +42,7 @@ def gpt2_wpos(cfg: dict) -> None:
                 "expected_fine": ["helix"], "prereg": True})
     rng = np.random.default_rng(0)
     save_cloud(cfg, "C3_gpt2_wpos_init", rng.normal(0, 0.02, size=(1023, 768)), np.arange(1, 1024),
-               {"source": "GPT-2 initialisation N(0, 0.02^2) of W_pos", "control_for": "R1_gpt2_wpos", "expected_coarse": "3d",
+               {"source": "HF GPT-2 initialisation N(0, 0.02^2) of W_pos", "control_for": "R1_gpt2_wpos", "expected_coarse": "3d",
                 "expected_fine": ["blob"], "prereg": True})
 
 

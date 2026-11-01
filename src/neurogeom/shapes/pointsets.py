@@ -1,8 +1,9 @@
-"""0D shape families: clusters (k = 2..6 centroids) and regular polytopes (vertex sets).
+"""0D shape families: clusters (k = 2..6 centroids) and polytopes (vertex sets of six templates).
 
 Global context: discrete geometries - two clusters for true vs false statements (Marks & Tegmark
-2024), regular polytopes formed by features in superposition (Elhage et al. 2022: triangles,
-tetrahedra, pentagons, square antiprisms). The "dense samples" of a point-set shape are its centroids
+2024), the uniform polytopes formed by features in superposition (Elhage et al. 2022: digons, triangles,
+tetrahedra, pentagons, square antiprisms). Templates: the regular triangle, square, pentagon, tetrahedron and
+octahedron, plus the square antiprism, which is uniform (all edges equal) but not regular. The "dense samples" of a point-set shape are its centroids
 or vertices (padded to a fixed maximum with weight 0), so Chamfer between centroid sets is
 permutation-invariant and needs no Hungarian matching. The unique output is the vertex/centroid list
 sorted lexicographically (by PC1, then PC2, PC3), which removes permutation and symmetry-group
@@ -152,7 +153,7 @@ class Clusters(ShapeFamily):
         return {"family": self.name, "k": k, "centroids": p["centroids"][i, p["valid"][i]].tolist(), "spread": float(p["spread"][i])}
 
 
-# ------------------------------------------------------------------ regular polytopes (unit circumradius)
+# ------------------------------------------------------------------ polytope templates (unit circumradius)
 def _polytope_templates() -> dict[str, torch.Tensor]:
     ang = lambda n, off=0.0: [(math.cos(2 * math.pi * k / n + off), math.sin(2 * math.pi * k / n + off), 0.0) for k in range(n)]
     s3 = 1 / math.sqrt(3)
@@ -204,7 +205,7 @@ def _dist_profile(pts: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
 
 
 def near_regular_polytope(cents: torch.Tensor, valid: torch.Tensor, tol: float = 0.08) -> torch.Tensor:
-    """True where a centroid set has (nearly) the distance profile of a regular polytope with the same
+    """True where a centroid set has (nearly) the distance profile of a polytope template with the same
     vertex count, so the 'clusters' label would be ambiguous with 'polytope'."""
     prof = _dist_profile(cents, valid)
     k = valid.sum(-1)
@@ -223,7 +224,7 @@ def near_regular_polytope(cents: torch.Tensor, valid: torch.Tensor, tol: float =
 
 
 class Polytope(ShapeFamily):
-    """Vertices of a regular polytope: c + radius * R @ template[subtype] (+ small vertex spread).
+    """Vertices of a polytope template: c + radius * R @ template[subtype] (+ small vertex spread).
     Raw layout: [subtype logits (6), center (3), rot6d (6), log radius (1), log spread (1)]."""
 
     name, coarse, manifold_dim, posed = "polytope", "0d", 0, False
@@ -290,7 +291,7 @@ class Polytope(ShapeFamily):
         rot = p["rot"]
         improper = det3(q) < 0
         if bool(improper.any()):
-            # All six regular polytopes are achiral: a mirror symmetry F of the template (det -1) turns
+            # All six templates are achiral: a mirror symmetry F of the template (det -1) turns
             # q R into the proper rotation q R F with the same vertex set (y-flip; x<->y swap for the tetrahedron).
             mir = _mirrors(q.device, q.dtype)[p["subtype"]]
             rot = torch.where(improper.view(-1, 1, 1), rot @ mir, rot)
